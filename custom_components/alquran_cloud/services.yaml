@@ -1,0 +1,119 @@
+play:
+  name: Play surah
+  description: Play one joined MP3 for a full surah or an ayah range, or open that range in a TV browser.
+  target:
+    entity:
+      domain: media_player
+  fields:
+    reciter_id:
+      name: Reciter
+      description: Ayah reciter edition from Al Quran Cloud, such as ar.alafasy.
+      required: true
+      selector:
+        text:
+    surah:
+      name: Surah
+      description: Surah number (1-114).
+      required: false
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 114
+          mode: box
+    start_ayah:
+      name: Start ayah
+      description: First ayah of the range. Use 1 for a full surah.
+      required: false
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 286
+          mode: box
+    end_ayah:
+      name: End ayah
+      description: Last ayah of the range. Leave empty to play through the last ayah of the surah.
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 286
+          mode: box
+    repeat:
+      name: Repeat
+      description: Play this range, or each full surah, this many times before moving on.
+      required: false
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 20
+          mode: box
+    speed:
+      name: Playback speed
+      description: 0.75, 1, 1.25, 1.5, 1.75, or 2. Audio speeds other than 1 need ffmpeg and an HTTPS URL. Surah video sends this speed to the TV browser.
+      required: false
+      selector:
+        number:
+          min: 0.75
+          max: 2
+          step: 0.25
+          mode: box
+    continue_surah:
+      name: Continue to next surah
+      description: After a full surah has played its repeats, play the next surah the same number of times. Ignored for an ayah range.
+      required: false
+      default: false
+      selector:
+        boolean:
+    loop:
+      name: Loop
+      description: After the audio sequence ends, start again from the original surah or range. Ignored for surah video.
+      required: false
+      default: false
+      selector:
+        boolean:
+    show_picture:
+      name: Surah video
+      description: Open the Quran player in the browser of an LG, Samsung, or Android TV. Home Assistant does not follow the ayah after that.
+      required: false
+      selector:
+        boolean:
+
+stop:
+  name: Stop playback
+  description: Stop playback and clear the session.
+  target:
+    entity:
+      domain: media_player
+
+next_surah:
+  name: Next surah
+  description: Play the next full surah with the same repeat, speed, and picture setting.
+  target:
+    entity:
+      domain: media_player
+
+previous_surah:
+  name: Previous surah
+  description: Play the previous full surah with the same repeat, speed, and picture setting.
+  target:
+    entity:
+      domain: media_player
+
+clear_cache:
+  name: Clear cache
+  description: Delete joined audio, leftover surah videos and pictures, downloaded ayah files, and unfinished work files.
+
+clear_audio_cache:
+  name: Clear audio cache
+  description: Delete joined surah and range MP3s. Downloaded ayah files stay, so the next play only rebuilds the joined file.
+
+clear_video_cache:
+  name: Clear video cache
+  description: Delete leftover surah videos and downloaded ayah pictures. Joined audio and downloaded ayah MP3s stay.
+
+clear_source_cache:
+  name: Clear downloaded ayahs
+  description: Delete downloaded ayah MP3s and unfinished work files. Joined audio stays until the audio cache is cleared.

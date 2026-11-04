@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f5132">
+  <title>Quran Kiosk Player</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/brand/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/brand/icon-192.png" sizes="192x192" type="image/png">
+  <link rel="apple-touch-icon" href="assets/brand/apple-icon.png">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+  <video id="bg" autoplay loop muted playsinline src="assets/landscape-tree-clouds.mp4"></video>
+
+  <div id="overlay">
+    <div id="top-bar">
+      <div id="info-bar" data-i18n="loading">Loading...</div>
+      <div id="top-actions">
+        <div class="btn-group">
+          <button id="btn-open-surahs">📖 <span data-i18n="surahsBtn">Surahs</span></button>
+          <button id="btn-open-range">🎯 <span data-i18n="ayahsLabel">Ayahs</span>: <span id="range-label">All</span></button>
+          <button id="btn-open-reciters">🎙️ <span id="reciter-label">Reciter</span></button>
+        </div>
+        <div class="btn-group">
+          <button id="btn-speed-toggle">⚡ <span id="speed-label">1x</span></button>
+          <button id="btn-open-repeat">🔁 <span id="repeat-label">Repeat: 1/1</span></button>
+        </div>
+        <div class="btn-group">
+          <button id="btn-toggle-bg" class="toggle-btn active">🎥 Background</button>
+          <button id="btn-auto-surah" class="toggle-btn active">Auto next</button>
+          <button id="btn-language" type="button">العربية</button>
+          <button id="btn-open-settings">⚙️ <span data-i18n="settingsBtn">Settings</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="ayah-container">
+      <img id="ayah-img" src="" alt="Ayah calligraphy">
+    </div>
+
+    <audio id="audio" playsinline></audio>
+
+    <div id="controls">
+      <div class="btn-group">
+        <button id="btn-prev-surah" data-i18n="prevSurah">⏮ Previous surah</button>
+        <button id="btn-prev-ayah" data-i18n="prevAyah">◀ Previous ayah</button>
+      </div>
+      <div class="btn-group">
+        <button id="btn-play-pause">⏸ Pause</button>
+      </div>
+      <div class="btn-group">
+        <button id="btn-next-ayah" data-i18n="nextAyah">Next ayah ▶</button>
+        <button id="btn-next-surah" data-i18n="nextSurah">Next surah ⏭</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-surah" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 data-i18n="surahsTitle">Surahs</h3>
+        <button class="modal-close" onclick="closeModals()">&times;</button>
+      </div>
+      <div class="modal-search">
+        <input type="text" id="search-surah" data-i18n-placeholder="surahSearch" placeholder="Search by number or name...">
+      </div>
+      <div class="modal-list" id="surah-grid"></div>
+    </div>
+  </div>
+
+  <div id="modal-reciter" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 data-i18n="recitersTitle">Reciters</h3>
+        <button class="modal-close" onclick="closeModals()">&times;</button>
+      </div>
+      <div class="modal-search">
+        <input type="text" id="search-reciter" data-i18n-placeholder="reciterSearch" placeholder="Search by name or alquran.cloud id...">
+      </div>
+      <div class="modal-hint" data-i18n="reciterHint">Click the id or Copy to copy it. A star pins a favorite to the top. Full surah is one file; ayah by ayah is a clip per verse.</div>
+      <div class="modal-list" id="reciter-grid" style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));"></div>
+    </div>
+  </div>
+
+  <div id="modal-range" class="modal">
+    <div class="modal-content" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 data-i18n="rangeTitle">Ayah range for this surah</h3>
+        <button class="modal-close" onclick="closeModals()">&times;</button>
+      </div>
+      <div class="modal-body-form">
+        <div class="form-group">
+          <label for="range-from-input" data-i18n="rangeFrom">From ayah:</label>
+          <input type="number" id="range-from-input" class="form-input" min="1" value="1">
+        </div>
+        <div class="form-group">
+          <label for="range-to-input" data-i18n="rangeTo">To ayah (leave empty for the end of the surah):</label>
+          <input type="number" id="range-to-input" class="form-input" min="1" data-i18n-placeholder="rangeToPlaceholder" placeholder="End of surah">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="resetAyahRange()" data-i18n="rangeReset">Clear range (full surah)</button>
+        <button type="button" style="background:#10b981; border-color:#10b981;" onclick="applyAyahRange()" data-i18n="apply">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-settings" class="modal">
+    <div class="modal-content" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 data-i18n="settingsTitle">Settings</h3>
+        <button class="modal-close" onclick="closeModals()">&times;</button>
+      </div>
+      <div class="modal-body-form">
+        <div class="form-group">
+          <label for="cache-days-input" data-i18n="cacheDaysLabel">Cache period (days)</label>
+          <input type="number" id="cache-days-input" class="form-input" min="0" max="365" step="1" value="7">
+        </div>
+        <small data-i18n="cacheHint">The same period is used for the reciter list, audio, ayah images, and the background video. 0 turns caching off. Older files are removed when the period ends or browser storage fills up.</small>
+        <div id="cache-status" data-i18n="cacheCounting">Counting...</div>
+        <div class="settings-reset">
+          <small data-i18n="resetHint">Restores English, removes every favorite reciter, and sets the cache period back to 7 days. Downloaded audio is kept.</small>
+          <button type="button" id="btn-reset-settings" class="btn-danger" data-i18n="resetSettings">Reset settings</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="btn-clear-cache" class="btn-danger" data-i18n="clearCache">Clear cache</button>
+        <button type="button" id="btn-apply-cache" style="background:#10b981; border-color:#10b981;" data-i18n="save">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-repeat" class="modal">
+    <div class="modal-content" style="max-width: 440px;">
+      <div class="modal-header">
+        <h3 data-i18n="repeatTitle">Repeat the surah or selected range</h3>
+        <button class="modal-close" onclick="closeModals()">&times;</button>
+      </div>
+      <div class="modal-body-form">
+        <div class="form-group">
+          <label for="repeat-input" data-i18n="repeatCountLabel">Repeat count (1 to 20):</label>
+          <input type="number" id="repeat-input" class="form-input" min="1" max="20" value="1">
+        </div>
+        <small data-i18n="repeatHint">If an ayah range is set, that range repeats this many times before moving on or stopping.</small>
+      </div>
+      <div class="modal-footer">
+        <button type="button" style="background:#10b981; border-color:#10b981;" onclick="applyRepeatCount()" data-i18n="apply">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/kiosk-lib.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Al Quran Cloud",
+        "description": "تشغيل القرآن من Al Quran Cloud. الصوت يجمع ملفات الآيات. فيديو السورة يفتح المشغّل في متصفح تلفاز LG أو Samsung أو Android.",
+        "data": {
+          "display_language": "لغة العرض",
+          "cache_days": "حفظ الصوت المجمّع (أيام)",
+          "playback_speed": "سرعة التشغيل الافتراضية",
+          "show_picture": "فيديو السورة",
+          "favorite_reciters": "القراء المفضلون"
+        },
+        "data_description": {
+          "display_language": "اللغة المستخدمة لأسماء القراء والسور.",
+          "cache_days": "عدد الأيام التي يُحفظ فيها ملف الصوت المجمّع قبل إعادة بنائه (1-90).",
+          "playback_speed": "السرعات غير 1 تحتاج ffmpeg ورابط HTTPS لهوم أسيستنت. فيديو السورة يرسل هذه السرعة إلى متصفح التلفاز.",
+          "show_picture": "فتح مشغّل القرآن في متصفح تلفاز LG أو Samsung أو Android. هوم أسيستنت لا يتابع الآية بعد ذلك.",
+          "favorite_reciters": "تظهر أعلى مصدر Al Quran Cloud بعد تحميل القائمة."
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "يُسمح بإعداد واحد فقط لـ Al Quran Cloud."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "خيارات Al Quran Cloud",
+        "data": {
+          "display_language": "لغة العرض",
+          "cache_days": "حفظ الصوت المجمّع (أيام)",
+          "playback_speed": "سرعة التشغيل الافتراضية",
+          "show_picture": "فيديو السورة",
+          "favorite_reciters": "القراء المفضلون"
+        },
+        "data_description": {
+          "display_language": "اللغة المستخدمة لأسماء القراء والسور.",
+          "cache_days": "عدد الأيام التي يُحفظ فيها ملف الصوت المجمّع قبل إعادة بنائه (1-90).",
+          "playback_speed": "السرعات غير 1 تحتاج ffmpeg ورابط HTTPS لهوم أسيستنت. فيديو السورة يرسل هذه السرعة إلى متصفح التلفاز.",
+          "show_picture": "فتح مشغّل القرآن في متصفح تلفاز LG أو Samsung أو Android. هوم أسيستنت لا يتابع الآية بعد ذلك.",
+          "favorite_reciters": "تظهر أعلى مصدر Al Quran Cloud بعد تحميل القائمة."
+        }
+      }
+    }
+  },
+  "selector": {
+    "display_language": {
+      "options": {
+        "english": "الإنجليزية",
+        "arabic": "العربية"
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "active_sessions": {
+        "name": "الجلسات النشطة"
+      }
+    },
+    "button": {
+      "stop_session": {
+        "name": "إيقاف Al Quran Cloud"
+      }
+    }
+  }
+}
