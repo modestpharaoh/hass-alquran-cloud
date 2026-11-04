@@ -20,7 +20,7 @@ speed: 1
 continue_surah: false
 loop: false
 webapp: false
-background_video: true
+background_video: false
 ```
 
 | Field | Role |
@@ -31,11 +31,11 @@ background_video: true
 | `start_ayah` | First ayah. Default 1. |
 | `end_ayah` | Last ayah. Empty means through the last ayah. |
 | `repeat` | 1–20. |
-| `speed` | 0.75, 1, 1.25, 1.5, 1.75, or 2. |
+| `speed` | 0.5, 0.75, 1, 1.25, 1.5, 1.75, or 2. |
 | `continue_surah` | Shown only for a full surah. Ignored for a range. |
-| `loop` | Audio only. Hidden and forced off when the web app is on. |
+| `loop` | Off unless set. Replays the original surah or range. Sent to the web app as `loop`. |
 | `webapp` | Opens the Quran web app on a TV instead of playing a joined MP3. |
-| `background_video` | Landscape clip behind the web app. Hidden unless `webapp` is on. Defaults to true. |
+| `background_video` | Landscape clip behind the web app. Hidden unless `webapp` is on. Defaults to false. |
 
 Play calls `alquran_cloud.play` with those fields. Pause, resume, and volume use the media player’s own services when the player supports them. Next and previous call `alquran_cloud.next_surah` and `previous_surah`. Stop calls `alquran_cloud.stop`.
 
@@ -65,7 +65,7 @@ Audio mode shows a progress bar from the session spans and the player’s `media
 
 Web app mode hides the progress bar and the pause button. The state pill says **On the TV** (`onTv`). Volume controls stay if the entity supports volume. The session does not move the ayah, and there is nothing to pause inside Home Assistant. The TV browser is playing. The background switch is shown only in this mode and is sent as `background_video`.
 
-Continue-to-next stays available in web app mode for a full surah. The TV player receives it as `auto_surah`. Loop does not.
+Continue-to-next stays available in web app mode for a full surah. The TV player receives it as `auto_surah`. Loop stays available in both modes and is sent as `loop`. Background video is shown only while the web app is selected.
 
 ## Decisions
 

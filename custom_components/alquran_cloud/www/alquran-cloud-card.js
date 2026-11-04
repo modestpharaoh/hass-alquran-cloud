@@ -1,6 +1,6 @@
 const ROOT_ID = "media-source://alquran_cloud";
 const BRAND_ICON = "/alquran_cloud_brand/icon.svg";
-const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2];
+const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 const VIDEO_PLATFORMS = ["webostv", "samsungtv", "samsungtv_smart", "samsungtv_tizen", "androidtv"];
 const PAUSE = 1;
 const VOLUME_SET = 4;
@@ -282,7 +282,7 @@ class AlquranCloudCard extends HTMLElement {
       continue_surah: false,
       loop: false,
       webapp: false,
-      background_video: true,
+      background_video: false,
     };
   }
 
@@ -440,7 +440,7 @@ class AlquranCloudCard extends HTMLElement {
     this._continue.checked = Boolean(config.continue_surah);
     this._loop.checked = Boolean(config.loop);
     this._webapp.checked = Boolean(config.webapp);
-    this._background.checked = config.background_video !== false;
+    this._background.checked = config.background_video === true;
     if (config.entity) this._preferredPlayer = config.entity;
     if (config.reciter_id) this._preferredReciter = String(config.reciter_id);
     if (config.surah) this._preferredSurah = String(config.surah);
@@ -449,7 +449,6 @@ class AlquranCloudCard extends HTMLElement {
   }
 
   _onWebappChange() {
-    if (this._webapp.checked) this._loop.checked = false;
     const before = this._player.value;
     this._loadPlayers();
     if (this._webapp.checked && before && !this._player.value) {
@@ -535,9 +534,7 @@ class AlquranCloudCard extends HTMLElement {
     this._continue.parentElement.hidden = !full;
     if (!full) this._continue.checked = false;
     const video = Boolean(this._webapp && this._webapp.checked);
-    this._loop.parentElement.hidden = video;
     this._background.parentElement.hidden = !video;
-    if (video) this._loop.checked = false;
   }
 
   _playerState() {
@@ -556,7 +553,6 @@ class AlquranCloudCard extends HTMLElement {
     this._stopButton.textContent = text.stop;
     this._continue.parentElement.querySelector("span").textContent = text.continueSurah;
     this._loop.parentElement.querySelector("span").textContent = text.loop;
-    this._loop.parentElement.hidden = this._webapp.checked;
     this._background.parentElement.hidden = !this._webapp.checked;
     this._webapp.parentElement.querySelector("span").textContent = text.webapp;
     this._background.parentElement.querySelector("span").textContent = text.background;
@@ -717,7 +713,7 @@ class AlquranCloudCard extends HTMLElement {
       repeat: clampRepeat(this._repeat.value),
       speed: Number(this._speed.value),
       continue_surah: this._isFullSurah() && this._continue.checked,
-      loop: this._webapp.checked ? false : this._loop.checked,
+      loop: this._loop.checked,
       webapp: this._webapp.checked,
       background_video: this._background.checked,
     };
@@ -856,11 +852,10 @@ class AlquranCloudCardEditor extends HTMLElement {
     this._continue.label.classList.toggle("hidden", !full);
     this._continue.control.checked = full && Boolean(config.continue_surah);
     const video = Boolean(config.webapp);
-    this._loop.label.classList.toggle("hidden", video);
-    this._loop.control.checked = !video && Boolean(config.loop);
+    this._loop.control.checked = Boolean(config.loop);
     this._webapp.control.checked = video;
     this._background.label.classList.toggle("hidden", !video);
-    this._background.control.checked = config.background_video !== false;
+    this._background.control.checked = config.background_video === true;
     const players = mediaPlayers(this._hass, video);
     const entity = config.entity && players.some((item) => item.id === config.entity) ? config.entity : "";
     fillSelect(this._player.control, players, entity, "");
@@ -910,7 +905,6 @@ class AlquranCloudCardEditor extends HTMLElement {
       const show = this._webapp.control.checked;
       const players = mediaPlayers(this._hass, show);
       const patch = { webapp: show };
-      if (show) patch.loop = false;
       if (show && this._config.entity && !players.some((item) => item.id === this._config.entity)) {
         patch.entity = undefined;
       }

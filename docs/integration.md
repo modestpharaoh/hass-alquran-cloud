@@ -50,15 +50,15 @@ Joined audio is served only over HTTPS. `https_base` asks Home Assistant for an 
 
 Cache files live under `.cache/alquran_cloud/audio/{edition}/{surah}-{start}-{end}-s{speed}.mp3`. **Joined audio cache (days)** is how long an unused file is kept. The default is 7, the range is 1–90. Playing a fresh file updates its age. The first build of a long surah can take several minutes. A persistent notification stays up while ffmpeg runs.
 
-Repeat plays that same file the requested number of times (1–20). Continue to the next surah applies only when the range is the whole surah. Loop is audio only. An ayah range does not continue into the next surah.
+Repeat plays that same file the requested number of times (1–20). Continue to the next surah applies only when the range is the whole surah. Loop, off by default, replays the original surah or range. An ayah range does not continue into the next surah. Playback speed includes `0.5`.
 
 The media browser is a separate path. It still resolves one public CDN MP3 per ayah. It does not build or join files. Favorites from the options flow are listed first.
 
 ## Web app
 
-`session.py` never calls `prepare_playback` when `webapp` is set. It builds a kiosk URL and launches the TV browser. Loop is forced off. The session stores the title, the range, and the reciter. State text for the card is “On the TV”. There is no `media_position` and no ayah advance. The state listener returns immediately for these sessions, so the TV going idle does not end the session or start the next surah.
+`session.py` never calls `prepare_playback` when `webapp` is set. It builds a kiosk URL and launches the TV browser. The session stores the title, the range, and the reciter. State text for the card is “On the TV”. There is no `media_position` and no ayah advance. The state listener returns immediately for these sessions, so the TV going idle does not end the session or start the next surah. Continue and loop are query parameters. The page owns them after it opens.
 
-`background_video` is sent as `background_video=true` or `background_video=false`. The page shows the landscape clip unless the value is `false`. Joined audio ignores it.
+`background_video` is sent as `background_video=true` or `background_video=false`. The default is false, so the landscape clip stays hidden until it is turned on. Joined audio ignores it.
 
 The URL is `{internal-or-external}/api/alquran_cloud/kiosk/?…`. The internal URL is preferred (`prefer_external=False`, `allow_internal=True`) so a TV on the LAN can open it. The external URL is the fallback. `http://` is allowed for the page. The query is described in [Quran player](kiosk.md). The path has a trailing slash before `?` so the page can resolve `assets/` and `js/` underneath `/kiosk/`.
 

@@ -79,7 +79,7 @@ class PlaybackSession:
     speed: float
     webapp: bool
     platform: str
-    background_video: bool = True
+    background_video: bool = False
     origin_chapter: int = 0
     origin_start: int = 1
     origin_end: int = 1
@@ -246,12 +246,10 @@ class PlaybackSessionManager:
         loop: bool,
         speed: float,
         webapp: bool,
-        background_video: bool = True,
+        background_video: bool = False,
         platform: str = "",
     ) -> PlaybackSession:
         """Start or replace a session and play one cached surah or ayah range."""
-        if webapp:
-            loop = False
         end = chapter.verses_count if end_ayah in (None, 0) else int(end_ayah)
         if start_ayah < 1 or end > chapter.verses_count or end < start_ayah:
             raise ValueError(
@@ -611,6 +609,7 @@ class PlaybackSessionManager:
             speed=session.speed,
             repeat=session.repeat,
             auto_surah=session.continue_surah,
+            loop=session.loop,
             language=kiosk_language(language),
             background_video=session.background_video,
         )

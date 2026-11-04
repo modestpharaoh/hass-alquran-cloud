@@ -52,11 +52,11 @@ play:
           mode: box
     speed:
       name: Playback speed
-      description: 0.75, 1, 1.25, 1.5, 1.75, or 2. Audio speeds other than 1 need ffmpeg and an HTTPS URL. The web app sends this speed to the TV browser.
+      description: 0.5, 0.75, 1, 1.25, 1.5, 1.75, or 2. Audio speeds other than 1 need ffmpeg and an HTTPS URL. The web app sends this speed to the TV browser.
       required: false
       selector:
         number:
-          min: 0.75
+          min: 0.5
           max: 2
           step: 0.25
           mode: box
@@ -69,7 +69,7 @@ play:
         boolean:
     loop:
       name: Loop
-      description: After the audio sequence ends, start again from the original surah or range. Ignored for surah video.
+      description: After the sequence ends, start again from the original surah or range. The web app receives this and defaults to off.
       required: false
       default: false
       selector:
@@ -84,7 +84,7 @@ play:
       name: Background video
       description: Play the landscape video behind the web app. Ignored for joined audio.
       required: false
-      default: true
+      default: false
       selector:
         boolean:
 

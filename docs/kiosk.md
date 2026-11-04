@@ -14,7 +14,7 @@ No Home Assistant login. A TV browser launched by `system.launcher/open` or ADB 
 The page address always has a trailing slash before the query string:
 
 ```
-http://ha.lan:8123/api/alquran_cloud/kiosk/?surah=2&ayah=1&reciter=ar.alafasy&speed=1&repeat=1&auto_surah=true&language=en
+http://ha.lan:8123/api/alquran_cloud/kiosk/?surah=2&ayah=1&reciter=ar.alafasy&speed=1&repeat=1&auto_surah=true&loop=false&language=en&background_video=false
 ```
 
 Relative URLs such as `assets/bismillah.png` and `js/app.compat.js` then resolve under `/api/alquran_cloud/kiosk/`. Without the slash they would resolve under `/api/alquran_cloud/` and 404. The background video is a `<video>` tag with that relative path, which is why it played even when the script did not.
@@ -29,13 +29,14 @@ Built by `build_kiosk_url`:
 | `ayah` | First ayah |
 | `to_ayah` | Last ayah. Omitted when the range already runs to the end of the surah |
 | `reciter` | Al Quran Cloud edition id, such as `ar.alafasy` |
-| `speed` | `0.75` through `2`. `1.0` is written as `1` |
+| `speed` | `0.5`, `0.75`, `1`, `1.25`, `1.5`, `1.75`, or `2`. `1.0` is written as `1` |
 | `repeat` | 1–20 |
-| `auto_surah` | `true` when continue-to-next is on. That option is only for a full surah |
+| `auto_surah` | `true` turns on auto-next. Anything else, including a missing value, leaves it off |
+| `loop` | `true` turns on loop. Anything else leaves it off. With auto-next off, loop replays the opened surah or range. With auto-next on, loop wraps from surah 114 back to surah 1 |
 | `language` | `en` or `ar`, from the integration display language |
-| `background_video` | `true` or `false`. Missing means the landscape clip plays. `false` pauses it and hides it |
+| `background_video` | `true` plays the landscape clip. Missing or `false` pauses it and hides it |
 
-Loop is not sent. It is audio-only in Home Assistant and forced off for the web app.
+The auto-next and loop buttons take their on state from those parameters. A missing or `false` value leaves the button off. The page used to paint auto-next as on in the HTML even when `auto_surah=false`, so the control looked enabled while playback stopped at the end of the surah.
 
 The player reads those values once at load. It does not report the current ayah back to Home Assistant.
 

@@ -187,12 +187,16 @@
     let endAyah = params.has('to_ayah') ? queryInt('to_ayah', null, 1, 286) : null;
     const endSurah = params.has('to_surah') ? queryInt('to_surah', null, 1, 114) : null;
     let reciter = safeEditionId(params.get('reciter'), 'ar.alafasy');
-    let autoNextSurah = params.get('auto_surah') !== 'false';
+    let autoNextSurah = params.get('auto_surah') === 'true';
+    let loopEnabled = params.get('loop') === 'true';
     const requestedSpeed = parseFloat(params.get('speed') || '1');
     let currentSpeed = AVAILABLE_SPEEDS.includes(requestedSpeed) ? requestedSpeed : 1;
     let maxRepeatCount = queryInt('repeat', 1, 1, 20);
     let currentRepeatCycle = 1;
-    let bgVideoEnabled = params.get('background_video') !== 'false';
+    let bgVideoEnabled = params.get('background_video') === 'true';
+    const originSurah = currentSurah;
+    const originStartAyah = startAyah;
+    const originEndAyah = endAyah;
 
     function languageFromQuery() {
       return languageFromSearch(params);
@@ -229,6 +233,7 @@
     const btnPlayPause = document.getElementById('btn-play-pause');
     const btnToggleBg = document.getElementById('btn-toggle-bg');
     const btnAutoSurah = document.getElementById('btn-auto-surah');
+    const btnLoop = document.getElementById('btn-loop');
     const btnSpeedToggle = document.getElementById('btn-speed-toggle');
     const speedLabel = document.getElementById('speed-label');
     const rangeLabel = document.getElementById('range-label');
@@ -294,6 +299,8 @@
         bgOff: '🎥 Background: off',
         autoOn: 'Auto next: on',
         autoOff: 'Auto next: off',
+        loopOn: 'Loop: on',
+        loopOff: 'Loop: off',
         cacheOn: 'on',
         cacheNeedsServer: 'needs a local server',
         cacheWaiting: 'waiting to start',
@@ -359,6 +366,8 @@
         bgOff: '🎥 خلفية: إخفاء',
         autoOn: 'التالي تلقائياً: تفعيل',
         autoOff: 'التالي تلقائياً: تعطيل',
+        loopOn: 'الإعادة: تفعيل',
+        loopOff: 'الإعادة: تعطيل',
         cacheOn: 'يعمل',
         cacheNeedsServer: 'يحتاج فتح الصفحة من خادم',
         cacheWaiting: 'بانتظار التفعيل',
@@ -472,7 +481,15 @@
     }
 
     function updateAutoButton() {
+      if (!btnAutoSurah) return;
       btnAutoSurah.textContent = autoNextSurah ? t('autoOn') : t('autoOff');
+      btnAutoSurah.classList.toggle('active', autoNextSurah);
+    }
+
+    function updateLoopButton() {
+      if (!btnLoop) return;
+      btnLoop.textContent = loopEnabled ? t('loopOn') : t('loopOff');
+      btnLoop.classList.toggle('active', loopEnabled);
     }
 
     function updateLanguageButton() {
@@ -542,6 +559,7 @@
       updatePlayButton();
       applyBackground();
       updateAutoButton();
+      updateLoopButton();
       updateRangeUI();
       updateRepeatUI();
       updateReciterLabel();
@@ -951,6 +969,10 @@
       updateRepeatUI();
 
       if (endSurah && currentSurah >= endSurah) {
+        if (loopEnabled) {
+          replayFromStart();
+          return;
+        }
         playbackNote = 'surahsDone';
         refreshPlaybackInfo();
         stopPlaybackButton();
@@ -963,11 +985,33 @@
         endAyah = null;
         updateRangeUI();
         loadSurah(currentSurah, 1);
-      } else {
-        playbackNote = 'done';
-        refreshPlaybackInfo();
-        stopPlaybackButton();
+        return;
       }
+
+      if (loopEnabled) {
+        replayFromStart();
+        return;
+      }
+
+      playbackNote = 'done';
+      refreshPlaybackInfo();
+      stopPlaybackButton();
+    }
+
+    function replayFromStart() {
+      if (autoNextSurah) {
+        currentSurah = 1;
+        startAyah = 1;
+        endAyah = null;
+      } else {
+        currentSurah = originSurah;
+        startAyah = originStartAyah;
+        endAyah = originEndAyah;
+      }
+      currentRepeatCycle = 1;
+      updateRangeUI();
+      updateRepeatUI();
+      loadSurah(currentSurah, startAyah);
     }
 
     audio.onended = () => {
@@ -1148,8 +1192,12 @@
     // Toggle Auto Surah Advance
     btnAutoSurah.onclick = () => {
       autoNextSurah = !autoNextSurah;
-      btnAutoSurah.classList.toggle('active', autoNextSurah);
       updateAutoButton();
+    };
+
+    btnLoop.onclick = () => {
+      loopEnabled = !loopEnabled;
+      updateLoopButton();
     };
 
     document.getElementById('btn-language').onclick = () => {

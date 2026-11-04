@@ -26,7 +26,7 @@ DEFAULT_DISPLAY_LANGUAGE = LANG_ENGLISH
 DEFAULT_CACHE_DAYS = 7
 DEFAULT_PLAYBACK_SPEED = 1.0
 DEFAULT_WEBAPP = False
-DEFAULT_BACKGROUND_VIDEO = True
+DEFAULT_BACKGROUND_VIDEO = False
 DEFAULT_REPEAT = 1
 DEFAULT_CONTINUE_SURAH = False
 DEFAULT_LOOP = False
@@ -37,7 +37,7 @@ MIN_CACHE_DAYS = 1
 MAX_CACHE_DAYS = 90
 CHAPTER_COUNT = 114
 
-PLAYBACK_SPEEDS = (0.75, 1.0, 1.25, 1.5, 1.75, 2.0)
+PLAYBACK_SPEEDS = (0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0)
 
 END_OF_TRACK_SLACK_SECONDS = 5.0
 END_OF_TRACK_RATIO = 0.95
@@ -122,7 +122,7 @@ def coerce_speed(value: object) -> float:
         if abs(number - speed) < 1e-6:
             return speed
     raise ValueError(
-        "Unsupported playback speed. Use 0.75, 1, 1.25, 1.5, 1.75, or 2."
+        "Unsupported playback speed. Use 0.5, 0.75, 1, 1.25, 1.5, 1.75, or 2."
     )
 
 

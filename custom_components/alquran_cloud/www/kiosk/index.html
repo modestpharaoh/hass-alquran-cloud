@@ -13,7 +13,7 @@
 </head>
 <body>
 
-  <video id="bg" autoplay loop muted playsinline src="assets/landscape-tree-clouds.mp4"></video>
+  <video id="bg" class="hidden" loop muted playsinline src="assets/landscape-tree-clouds.mp4"></video>
 
   <div id="overlay">
     <div id="top-bar">
@@ -29,8 +29,9 @@
           <button id="btn-open-repeat">🔁 <span id="repeat-label">Repeat: 1/1</span></button>
         </div>
         <div class="btn-group">
-          <button id="btn-toggle-bg" class="toggle-btn active">🎥 Background</button>
-          <button id="btn-auto-surah" class="toggle-btn active">Auto next</button>
+          <button id="btn-toggle-bg" class="toggle-btn" type="button">🎥 Background</button>
+          <button id="btn-auto-surah" class="toggle-btn" type="button">Auto next</button>
+          <button id="btn-loop" class="toggle-btn" type="button">Loop</button>
           <button id="btn-language" type="button">العربية</button>
           <button id="btn-open-settings">⚙️ <span data-i18n="settingsBtn">Settings</span></button>
         </div>

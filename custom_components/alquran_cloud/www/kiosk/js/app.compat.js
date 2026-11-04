@@ -196,12 +196,16 @@ let startAyah = queryInt("ayah", 1, 1, 286);
 let endAyah = params.has("to_ayah") ? queryInt("to_ayah", null, 1, 286) : null;
 const endSurah = params.has("to_surah") ? queryInt("to_surah", null, 1, 114) : null;
 let reciter = safeEditionId(params.get("reciter"), "ar.alafasy");
-let autoNextSurah = params.get("auto_surah") !== "false";
+let autoNextSurah = params.get("auto_surah") === "true";
+let loopEnabled = params.get("loop") === "true";
 const requestedSpeed = parseFloat(params.get("speed") || "1");
 let currentSpeed = AVAILABLE_SPEEDS.includes(requestedSpeed) ? requestedSpeed : 1;
 let maxRepeatCount = queryInt("repeat", 1, 1, 20);
 let currentRepeatCycle = 1;
-let bgVideoEnabled = params.get("background_video") !== "false";
+let bgVideoEnabled = params.get("background_video") === "true";
+const originSurah = currentSurah;
+const originStartAyah = startAyah;
+const originEndAyah = endAyah;
 function languageFromQuery() {
   return languageFromSearch(params);
 }
@@ -232,6 +236,7 @@ audio.preload = "auto";
 const btnPlayPause = document.getElementById("btn-play-pause");
 const btnToggleBg = document.getElementById("btn-toggle-bg");
 const btnAutoSurah = document.getElementById("btn-auto-surah");
+const btnLoop = document.getElementById("btn-loop");
 const btnSpeedToggle = document.getElementById("btn-speed-toggle");
 const speedLabel = document.getElementById("speed-label");
 const rangeLabel = document.getElementById("range-label");
@@ -296,6 +301,8 @@ const STRINGS = {
     bgOff: "\u{1F3A5} Background: off",
     autoOn: "Auto next: on",
     autoOff: "Auto next: off",
+    loopOn: "Loop: on",
+    loopOff: "Loop: off",
     cacheOn: "on",
     cacheNeedsServer: "needs a local server",
     cacheWaiting: "waiting to start",
@@ -361,6 +368,8 @@ const STRINGS = {
     bgOff: "\u{1F3A5} \u062E\u0644\u0641\u064A\u0629: \u0625\u062E\u0641\u0627\u0621",
     autoOn: "\u0627\u0644\u062A\u0627\u0644\u064A \u062A\u0644\u0642\u0627\u0626\u064A\u0627\u064B: \u062A\u0641\u0639\u064A\u0644",
     autoOff: "\u0627\u0644\u062A\u0627\u0644\u064A \u062A\u0644\u0642\u0627\u0626\u064A\u0627\u064B: \u062A\u0639\u0637\u064A\u0644",
+    loopOn: "\u0627\u0644\u0625\u0639\u0627\u062F\u0629: \u062A\u0641\u0639\u064A\u0644",
+    loopOff: "\u0627\u0644\u0625\u0639\u0627\u062F\u0629: \u062A\u0639\u0637\u064A\u0644",
     cacheOn: "\u064A\u0639\u0645\u0644",
     cacheNeedsServer: "\u064A\u062D\u062A\u0627\u062C \u0641\u062A\u062D \u0627\u0644\u0635\u0641\u062D\u0629 \u0645\u0646 \u062E\u0627\u062F\u0645",
     cacheWaiting: "\u0628\u0627\u0646\u062A\u0638\u0627\u0631 \u0627\u0644\u062A\u0641\u0639\u064A\u0644",
@@ -466,7 +475,14 @@ function applyBackground() {
   updateBgButton();
 }
 function updateAutoButton() {
+  if (!btnAutoSurah) return;
   btnAutoSurah.textContent = autoNextSurah ? t("autoOn") : t("autoOff");
+  btnAutoSurah.classList.toggle("active", autoNextSurah);
+}
+function updateLoopButton() {
+  if (!btnLoop) return;
+  btnLoop.textContent = loopEnabled ? t("loopOn") : t("loopOff");
+  btnLoop.classList.toggle("active", loopEnabled);
 }
 function updateLanguageButton() {
   const button = document.getElementById("btn-language");
@@ -530,6 +546,7 @@ function applyLanguage() {
   updatePlayButton();
   applyBackground();
   updateAutoButton();
+  updateLoopButton();
   updateRangeUI();
   updateRepeatUI();
   updateReciterLabel();
@@ -879,6 +896,10 @@ function finishCurrentPass() {
   currentRepeatCycle = 1;
   updateRepeatUI();
   if (endSurah && currentSurah >= endSurah) {
+    if (loopEnabled) {
+      replayFromStart();
+      return;
+    }
     playbackNote = "surahsDone";
     refreshPlaybackInfo();
     stopPlaybackButton();
@@ -890,11 +911,30 @@ function finishCurrentPass() {
     endAyah = null;
     updateRangeUI();
     loadSurah(currentSurah, 1);
-  } else {
-    playbackNote = "done";
-    refreshPlaybackInfo();
-    stopPlaybackButton();
+    return;
   }
+  if (loopEnabled) {
+    replayFromStart();
+    return;
+  }
+  playbackNote = "done";
+  refreshPlaybackInfo();
+  stopPlaybackButton();
+}
+function replayFromStart() {
+  if (autoNextSurah) {
+    currentSurah = 1;
+    startAyah = 1;
+    endAyah = null;
+  } else {
+    currentSurah = originSurah;
+    startAyah = originStartAyah;
+    endAyah = originEndAyah;
+  }
+  currentRepeatCycle = 1;
+  updateRangeUI();
+  updateRepeatUI();
+  loadSurah(currentSurah, startAyah);
 }
 audio.onended = () => {
   if (isBismillah) {
@@ -1046,8 +1086,11 @@ btnToggleBg.onclick = () => {
 };
 btnAutoSurah.onclick = () => {
   autoNextSurah = !autoNextSurah;
-  btnAutoSurah.classList.toggle("active", autoNextSurah);
   updateAutoButton();
+};
+btnLoop.onclick = () => {
+  loopEnabled = !loopEnabled;
+  updateLoopButton();
 };
 document.getElementById("btn-language").onclick = () => {
   language = language === "en" ? "ar" : "en";

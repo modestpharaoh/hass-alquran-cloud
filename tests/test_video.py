@@ -22,6 +22,7 @@ from custom_components.alquran_cloud.video import (
 
 
 def test_speed_includes_175():
+    assert coerce_speed("0.5") == 0.5
     assert coerce_speed("1.75") == 1.75
     assert coerce_speed(1) == 1.0
     with pytest.raises(ValueError):
@@ -117,6 +118,8 @@ def test_kiosk_url_and_file():
     )
     assert "to_ayah" not in full
     assert "auto_surah=true" in full
+    assert "loop=false" in full
+    assert "background_video=false" in full
     assert "language=ar" in full
     root = Path(__file__).resolve().parents[1] / "custom_components" / "alquran_cloud" / "www" / "kiosk"
     assert resolve_kiosk_file(root, "") == root / "index.html"

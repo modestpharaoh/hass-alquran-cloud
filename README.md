@@ -28,7 +28,7 @@ start_ayah: 1
 repeat: 1
 speed: 1
 webapp: false
-background_video: true
+background_video: false
 ```
 
 The card is also added to Settings → Dashboards → Resources when Lovelace uses storage mode. The resource URL includes the version from `manifest.json`, so a version bump refreshes the card.
@@ -41,11 +41,11 @@ The public Al Quran Cloud API lists the free Arabic verse-by-verse recitations. 
 
 The media browser still opens one public ayah MP3, for example `https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3`. The play action does not. It builds one cached MP3 for the range, under `.cache/alquran_cloud/audio/`. **Joined audio cache (days)** decides how long that file is kept. The default is 7 days. Playing it again refreshes that age. The first build of a long surah can take several minutes. A notification stays up while ffmpeg works.
 
-Speeds other than 1 are written into the cached audio file. Repeat plays that file the requested number of times. Continue to the next surah is available only for a full surah. Loop is audio only.
+Speeds other than 1 are written into the cached audio file. Repeat plays that file the requested number of times. Continue to the next surah is available only for a full surah. Loop starts the original surah or range again, and it is off unless you turn it on.
 
 ## Web app on a TV
 
-Turn on **Web app**. Home Assistant opens `/api/alquran_cloud/kiosk/` in the TV browser with the reciter, surah, ayah range, speed, repeat, and background video in the address. The TV then owns playback. The card shows **On the TV** and does not follow the ayah. The TV going idle does not end the session. `background_video` plays or hides the landscape clip behind the page. It does nothing for joined audio.
+Turn on **Web app**. Home Assistant opens `/api/alquran_cloud/kiosk/` in the TV browser with the reciter, surah, ayah range, speed, repeat, continue, loop, and background video in the address. The TV then owns playback. The card shows **On the TV** and does not follow the ayah. The TV going idle does not end the session. `background_video` defaults to off. Turn it on to play the landscape clip behind the page. It does nothing for joined audio. The card shows that switch only while **Web app** is on.
 
 The player list in that mode contains only LG webOS, Samsung, and Android TV (`androidtv`, including Fire TV), in alphabetical order. Chromecast stays on the audio list. A Chromecast with Google TV can be used when that device is also set up as Android TV.
 
@@ -55,7 +55,7 @@ webOS 4 (firmware such as 04.64.00, Chromium 53) is supported by a downleveled c
 
 ## Actions
 
-`alquran_cloud.play` takes every playback option. Leave `end_ayah` out to run through the last ayah of the surah. `continue_surah` applies only to a full surah. `loop` is audio only and is ignored when `webapp` is true. `speed` is one of `0.75`, `1`, `1.25`, `1.5`, `1.75`, or `2`. `repeat` is 1–20. `background_video` defaults to true and is used only by the web app.
+`alquran_cloud.play` takes every playback option. Leave `end_ayah` out to run through the last ayah of the surah. `continue_surah` applies only to a full surah. `loop` defaults to off. For joined audio it replays the original surah or range. For the web app it is sent as `loop` and the page shows a matching button. `speed` is one of `0.5`, `0.75`, `1`, `1.25`, `1.5`, `1.75`, or `2`. `repeat` is 1–20. `background_video` defaults to false and is used only by the web app.
 
 ```yaml
 action: alquran_cloud.play
@@ -71,10 +71,10 @@ data:
   continue_surah: false
   loop: false
   webapp: false
-  background_video: true
+  background_video: false
 ```
 
-The same action opens the TV web app when `webapp` is true. Use an LG, Samsung, or Android TV entity. `loop` stays false. Set `background_video` to false to hide the landscape clip.
+The same action opens the TV web app when `webapp` is true. Use an LG, Samsung, or Android TV entity. `loop: true` turns on the page’s loop button. `background_video: true` plays the landscape clip.
 
 ```yaml
 action: alquran_cloud.play
@@ -90,7 +90,7 @@ data:
   continue_surah: false
   loop: false
   webapp: true
-  background_video: true
+  background_video: false
 ```
 
 Stop, next, and previous use the player from the current session. Next and previous open the neighboring full surah with the same repeat, speed, and video setting.
@@ -138,9 +138,11 @@ Starting the integration also deletes leftover surah videos and ayah pictures. `
 ## Manual check
 
 - [ ] Speaker, surah video off, speed 1: one cached MP3 of the surah or range plays, then stops.
-- [ ] Speed 1.75 on a speaker that can open the Home Assistant HTTPS URL.
-- [ ] Web app on the card lists only LG, Samsung, and Android TV players, sorted by name.
-- [ ] `background_video: false` opens the web app with the landscape clip hidden.
+- [ ] Speed 0.5 and 1.75 on a speaker that can open the Home Assistant HTTPS URL.
+- [ ] Web app on the card lists only LG, Samsung, and Android TV players, sorted by name. Loop stays visible. Background video appears only in that mode and starts off.
+- [ ] `background_video: true` opens the web app with the landscape clip playing. The default leaves it hidden.
+- [ ] `continue_surah: true` on a full surah opens with auto-next on and moves to the next surah. `auto_surah=false` leaves that button off and stops at the end.
+- [ ] `loop: true` turns the web app loop button on. Off leaves it off.
 - [ ] LG, Samsung, or Android TV opens the player on the requested reciter and ayah range. The card shows On the TV and does not move the ayah.
 - [ ] A second audio play of the same reciter and range starts without building the file again.
 - [ ] webOS 4 shows the bismillah image, fills the surah, and plays audio after a remote key if the TV blocked autoplay.

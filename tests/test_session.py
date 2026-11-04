@@ -190,7 +190,7 @@ async def test_picture_opens_tv_browser(hass: HomeAssistant):
         platform="webostv",
     )
     session = manager.get_session("media_player.lg")
-    assert session.loop is False
+    assert session.loop is True
     assert session.ayah == 1
     webos = [
         call.args
@@ -202,7 +202,8 @@ async def test_picture_opens_tv_browser(hass: HomeAssistant):
     assert target.startswith("http://ha.lan:8123/api/alquran_cloud/kiosk/?")
     assert "surah=1" in target and "ayah=1" in target and "to_ayah=3" in target
     assert "speed=1.75" in target and "repeat=2" in target and "auto_surah=false" in target
-    assert "background_video=true" in target
+    assert "loop=true" in target
+    assert "background_video=false" in target
     await _finish(manager, "media_player.lg")
     assert manager.get_session("media_player.lg").chapter == 1
 
