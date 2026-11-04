@@ -4,7 +4,7 @@
 
 Home Assistant registers it as `/alquran_cloud/alquran-cloud-card.js?v=<manifest version>` when Lovelace storage resources are available. The version query is how a browser drops an old card after a bump in `manifest.json`. The brand icon is served from `/alquran_cloud_brand/`.
 
-The card speaks English or Arabic from the Home Assistant locale (`hass.locale.language` or `hass.language`). It does not use the integration’s display-language option. That option is what the TV player receives.
+The card speaks the integration’s display language, read from the active-sessions sensor. Arabic shows Arabic labels and names. English shows English labels and names. The TV player receives the same language.
 
 ## Config
 
@@ -61,9 +61,9 @@ If the saved `entity` is not one of those TVs, the select is cleared and the car
 
 The stage shows the star, the surah line, the reciter, and the Madinah mushaf line when the session has an album or is a web app session.
 
-Audio mode shows a progress bar from the session spans and the player’s `media_position`. Pause is available when the player supports play or pause.
+The card speaks the integration’s display language. Arabic shows Arabic names and آيات. English shows English names and ayahs. Audio mode shows the range that was requested, not the ayah under the playhead. A partial range is `001:005` plus the surah name. A surah played through the last ayah keeps the surah line and adds the ayah count, such as `108 · Al-Kawthar · 3 ayahs`. The card reads that session from the active-sessions sensor, including `sensor.al_quran_cloud_active_sessions`. The progress bar still advances once a second from `media_position`. When playback moves to another surah, the sensor title changes immediately, before the next joined file is finished. Pause is available when the player supports play or pause. Volume up and down move the slider at the same time as the player.
 
-Web app mode hides the progress bar and the pause button. The state pill says **On the TV** (`onTv`). Volume controls stay if the entity supports volume. The session does not move the ayah, and there is nothing to pause inside Home Assistant. The TV browser is playing. The background switch is shown only in this mode and is sent as `background_video`.
+Web app mode hides the progress bar, the pause button, and the next and previous buttons. The stage says that Home Assistant does not follow the TV. Volume controls stay if the entity supports volume. The background switch is shown only in this mode and is sent as `background_video`.
 
 Continue-to-next stays available in web app mode for a full surah. The TV player receives it as `auto_surah`. Loop stays available in both modes and is sent as `loop`. Background video is shown only while the web app is selected.
 

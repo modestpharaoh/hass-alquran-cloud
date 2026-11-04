@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from custom_components.alquran_cloud.api import Catalog, Chapter, Reciter
-from custom_components.alquran_cloud.session import PlaybackSessionManager
+from custom_components.alquran_cloud.session import PlaybackSessionManager, ayah_at
 from custom_components.alquran_cloud.video import PreparedMedia
 from homeassistant.core import Event, HomeAssistant
 
@@ -87,6 +87,45 @@ async def _finish(manager, entity_id, *, position=30, duration=31):
             }
         )
     )
+
+
+def test_ayah_at_uses_span_bounds():
+    spans = ((1, 0.0, 4.0), (2, 4.0, 8.0), (3, 8.0, 12.0))
+    assert ayah_at(spans, 0) == 1
+    assert ayah_at(spans, 3.9) == 1
+    assert ayah_at(spans, 4) == 2
+    assert ayah_at(spans, 11.9) == 3
+    assert ayah_at(spans, 12) == 3
+    assert ayah_at((), 1) is None
+
+
+@pytest.mark.asyncio
+async def test_playing_position_updates_current_ayah(hass: HomeAssistant):
+    manager = _manager(hass)
+    await manager.async_start(
+        "media_player.room",
+        manager.catalog.get_reciter("ar.alafasy"),
+        manager.catalog.get_chapter(1),
+        1,
+        repeat=1,
+        continue_surah=False,
+        loop=False,
+        speed=1,
+        webapp=False,
+    )
+    session = manager.get_session("media_player.room")
+    session.spans = ((1, 0.0, 4.0), (2, 4.0, 8.0), (3, 8.0, 12.0))
+    await manager._async_on_state_changed(
+        Event(
+            {
+                "entity_id": "media_player.room",
+                "old_state": None,
+                "new_state": _State("playing", {"media_position": 5.2, "media_duration": 12}),
+            }
+        )
+    )
+    assert session.ayah == 2
+    assert session.as_attr_dict()["spans"][1] == [2, 4.0, 8.0]
 
 
 @pytest.mark.asyncio

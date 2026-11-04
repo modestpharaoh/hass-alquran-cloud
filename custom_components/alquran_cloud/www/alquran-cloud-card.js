@@ -23,6 +23,9 @@ const STRINGS = {
     loop: "Loop",
     webapp: "Web app",
     webappHelp: "Opens the Quran web app in the TV browser. Home Assistant does not follow the ayah after that.",
+    webappFollow: "Home Assistant does not follow the TV. The TV browser owns playback, so this card will not move the surah or the ayah.",
+    openingNext: "Opening the next surah…",
+    openingPrevious: "Opening the previous surah…",
     background: "Background video",
     onTv: "On the TV",
     tvRequired: "Choose an LG, Samsung, or Android TV.",
@@ -38,6 +41,8 @@ const STRINGS = {
     playing: "Playing",
     paused: "Paused",
     mushaf: "Madinah Mushaf",
+    ayah: "ayah",
+    ayahs: "ayahs",
   },
   ar: {
     dir: "rtl",
@@ -54,6 +59,9 @@ const STRINGS = {
     loop: "إعادة التشغيل",
     webapp: "تطبيق الويب",
     webappHelp: "يفتح تطبيق القرآن في متصفح التلفاز. هوم أسيستنت لا يتابع الآية بعد ذلك.",
+    webappFollow: "هوم أسيستنت لا يتابع التلفاز. المتصفح على التلفاز يملك التشغيل، وهذه البطاقة لن تغيّر السورة أو الآية.",
+    openingNext: "جارٍ فتح السورة التالية…",
+    openingPrevious: "جارٍ فتح السورة السابقة…",
     background: "فيديو الخلفية",
     onTv: "على التلفاز",
     tvRequired: "اختر تلفاز LG أو Samsung أو Android.",
@@ -69,6 +77,8 @@ const STRINGS = {
     playing: "يعمل",
     paused: "متوقف مؤقتاً",
     mushaf: "مصحف المدينة",
+    ayah: "آية",
+    ayahs: "آيات",
   },
 };
 
@@ -77,8 +87,40 @@ function language(hass) {
   return String(code).toLowerCase().startsWith("ar") ? "ar" : "en";
 }
 
+function integrationLanguage(hass) {
+  if (!hass || !hass.states) return language(hass);
+  const known = [
+    "sensor.alquran_cloud_active_sessions",
+    "sensor.al_quran_cloud_active_sessions",
+  ];
+  const states = known
+    .map((id) => hass.states[id])
+    .filter(Boolean)
+    .concat(Object.values(hass.states));
+  for (const state of states) {
+    if (!state || !state.entity_id || !state.entity_id.startsWith("sensor.")) continue;
+    const value = state.attributes && state.attributes.display_language;
+    if (value === "arabic" || value === "english") return value === "arabic" ? "ar" : "en";
+  }
+  return language(hass);
+}
+
 function strings(hass) {
-  return STRINGS[language(hass)];
+  return STRINGS[integrationLanguage(hass)];
+}
+
+function inLanguage(value, lang) {
+  if (!value) return "";
+  return String(value)
+    .split(" · ")
+    .map((part) => part.trim())
+    .filter((part) => {
+      const hasArabic = /[\u0600-\u06FF]/.test(part);
+      const hasEnglish = /[A-Za-z]/.test(part);
+      if (lang === "ar") return !hasEnglish || hasArabic;
+      return !hasArabic || hasEnglish;
+    })
+    .join(" · ");
 }
 
 function valueFromContent(contentId, key) {
@@ -157,11 +199,20 @@ function errorText(err, fallback) {
 
 function sessionFor(hass, entityId) {
   if (!hass || !entityId || !hass.states) return null;
-  const states = Object.values(hass.states);
+  const known = [
+    "sensor.alquran_cloud_active_sessions",
+    "sensor.al_quran_cloud_active_sessions",
+  ];
+  const states = known
+    .map((id) => hass.states[id])
+    .filter(Boolean)
+    .concat(Object.values(hass.states));
   for (const state of states) {
-    if (!state || !state.entity_id || !state.entity_id.includes("alquran_cloud")) continue;
-    const details = state.attributes && state.attributes[entityId];
-    if (details && details.verse_key) return details;
+    if (!state || !state.entity_id || !state.entity_id.startsWith("sensor.")) continue;
+    const session = state.attributes && state.attributes[entityId];
+    if (session && typeof session === "object" && ("surah" in session || session.verse_key)) {
+      return session;
+    }
   }
   return null;
 }
@@ -174,8 +225,53 @@ function formatTime(seconds) {
   return `${minutes}:${String(remain).padStart(2, "0")}`;
 }
 
+function playbackClock(state) {
+  if (!state || !state.attributes) return null;
+  if (state.state !== "playing" && state.state !== "paused" && state.state !== "buffering") return null;
+  const attrs = state.attributes;
+  if (attrs.media_position == null) return null;
+  let position = Number(attrs.media_position);
+  if (!Number.isFinite(position)) return null;
+  const duration = attrs.media_duration == null ? null : Number(attrs.media_duration);
+  const hasDuration = Number.isFinite(duration) && duration > 0;
+  if (state.state === "playing" && attrs.media_position_updated_at) {
+    const updated = Date.parse(attrs.media_position_updated_at);
+    if (Number.isFinite(updated)) position += Math.max(0, (Date.now() - updated) / 1000);
+  }
+  position = Math.max(0, position);
+  if (hasDuration) position = Math.min(duration, position);
+  return { position, duration: hasDuration ? duration : null };
+}
+
+function pad3(value) {
+  return String(value).padStart(3, "0");
+}
+
+function arabicIndic(number) {
+  return String(number).replace(/[0-9]/g, (digit) => "٠١٢٣٤٥٦٧٨٩"[digit]);
+}
+
+function playbackLine(session, text, lang) {
+  const title = inLanguage(session.title || "", lang);
+  const start = Number(session.start_ayah);
+  const end = Number(session.end_ayah);
+  const names = title.replace(/^\d{1,3}\s*·\s*/, "");
+  if (session.full_surah && Number.isFinite(end)) {
+    const unit = end === 1 ? text.ayah : text.ayahs;
+    const count = lang === "ar" ? arabicIndic(end) : String(end);
+    const surah = title || session.verse_key || "";
+    return `${surah} · ${count} ${unit}`;
+  }
+  if (Number.isFinite(start) && Number.isFinite(end)) {
+    const range = `${pad3(start)}:${pad3(end)}`;
+    return names ? `${range} · ${names}` : range;
+  }
+  return title || session.verse_key || "";
+}
+
 const STYLE = `
   :host { display: block; }
+  [hidden] { display: none !important; }
   ha-card { overflow: hidden; }
   .header { display: flex; align-items: center; gap: 10px; padding: 14px 16px 10px; }
   .header img, .header ha-icon { width: 32px; height: 32px; border-radius: 50%; flex: 0 0 auto; }
@@ -203,6 +299,10 @@ const STYLE = `
     display: inline-block; margin-top: 8px; padding: 2px 10px; border-radius: 999px;
     font-size: 0.75rem; letter-spacing: 0.04em; background: rgba(255, 255, 255, 0.16);
   }
+  .follow-note {
+    margin: 10px auto 0; max-width: 36em; font-size: 0.84rem; line-height: 1.4; opacity: 0.92;
+  }
+  .follow-note[hidden] { display: none; }
   .progress { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
   .progress[hidden] { display: none; }
   .progress .time { min-width: 2.4em; font-size: 0.75rem; font-variant-numeric: tabular-nums; opacity: 0.9; }
@@ -266,11 +366,19 @@ function iconButton(className, iconName) {
   return button;
 }
 
+function setIcon(button, iconName) {
+  const icon = button && button.querySelector("ha-icon");
+  if (!icon) return;
+  icon.icon = iconName;
+  icon.setAttribute("icon", iconName);
+}
+
 class AlquranCloudCard extends HTMLElement {
   constructor() {
     super();
     this._config = {};
     this._built = false;
+    this._progressTimer = null;
     this.attachShadow({ mode: "open" });
   }
 
@@ -305,6 +413,10 @@ class AlquranCloudCard extends HTMLElement {
     if (this._hass && !this._catalog) this._loadReciters();
   }
 
+  disconnectedCallback() {
+    this._stopProgressClock();
+  }
+
   _build() {
     const text = strings(this._hass);
     const style = document.createElement("style");
@@ -326,6 +438,9 @@ class AlquranCloudCard extends HTMLElement {
     this._mushafLine.className = "mushaf-line";
     this._statePill = document.createElement("div");
     this._statePill.className = "state-pill";
+    this._followNote = document.createElement("div");
+    this._followNote.className = "follow-note";
+    this._followNote.hidden = true;
     const progress = document.createElement("div");
     progress.className = "progress";
     progress.hidden = true;
@@ -342,7 +457,23 @@ class AlquranCloudCard extends HTMLElement {
     this._progress = progress;
     this._transport = document.createElement("div");
     this._transport.className = "transport";
-    stage.append(brandImage("art"), this._surahLine, this._reciterLine, this._mushafLine, this._statePill, progress, this._transport);
+    this._previousButton = iconButton("jump", "mdi:skip-previous");
+    this._pauseButton = iconButton("pause", "mdi:pause");
+    this._nextButton = iconButton("jump", "mdi:skip-next");
+    this._previousButton.addEventListener("click", () => this._transportAction("previous"));
+    this._pauseButton.addEventListener("click", () => this._transportAction("pause"));
+    this._nextButton.addEventListener("click", () => this._transportAction("next"));
+    this._transport.append(this._previousButton, this._pauseButton, this._nextButton);
+    stage.append(
+      brandImage("art"),
+      this._surahLine,
+      this._reciterLine,
+      this._mushafLine,
+      this._statePill,
+      this._followNote,
+      progress,
+      this._transport
+    );
 
     const body = document.createElement("div");
     body.className = "body";
@@ -369,6 +500,24 @@ class AlquranCloudCard extends HTMLElement {
     const volume = document.createElement("div");
     volume.className = "volume";
     volume.hidden = true;
+    this._volumeDown = iconButton("icon", "mdi:volume-minus");
+    this._volumeSlider = document.createElement("input");
+    this._volumeSlider.type = "range";
+    this._volumeSlider.min = "0";
+    this._volumeSlider.max = "100";
+    this._volumeSlider.value = "50";
+    this._volumeUp = iconButton("icon", "mdi:volume-plus");
+    this._volumeDown.addEventListener("click", () => this._volumeStep(-0.05));
+    this._volumeUp.addEventListener("click", () => this._volumeStep(0.05));
+    this._volumeSlider.addEventListener("change", () => {
+      const level = Number(this._volumeSlider.value) / 100;
+      this._volumeTarget = level;
+      this._hass.callService("media_player", "volume_set", {
+        entity_id: this._player.value,
+        volume_level: level,
+      });
+    });
+    volume.append(this._volumeDown, this._volumeSlider, this._volumeUp);
     this._volume = volume;
     const actions = document.createElement("div");
     actions.className = "actions";
@@ -563,10 +712,13 @@ class AlquranCloudCard extends HTMLElement {
       : "";
     const state = this._playerState();
     const session = sessionFor(this._hass, this._player.value);
+    const webapp = Boolean((session && session.webapp) || this._webapp.checked);
+    this._followNote.hidden = !webapp;
+    this._followNote.textContent = webapp ? text.webappFollow : "";
     if (session) {
-      this._surahLine.textContent = session.title || session.verse_key;
-      this._reciterLine.textContent = session.artist || "";
-      this._mushafLine.textContent = session.album || (session.webapp ? text.mushaf : "");
+      const lang = integrationLanguage(this._hass);
+      this._reciterLine.textContent = inLanguage(session.artist || "", lang);
+      this._mushafLine.textContent = inLanguage(session.album || (session.webapp ? text.mushaf : ""), lang);
       this._statePill.textContent = session.webapp
         ? text.onTv
         : state && state.state === "paused"
@@ -580,84 +732,104 @@ class AlquranCloudCard extends HTMLElement {
       this._mushafLine.textContent = this._webapp.checked ? text.mushaf : "";
       this._statePill.textContent = text.idle;
     }
-    this._renderTransport(text, state);
-    this._renderProgress(state);
+    this._renderTransport(text, state, webapp);
+    this._paintPlayback();
     this._renderVolume(state);
   }
 
-  _renderTransport(text, state) {
+  _paintPlayback() {
+    const state = this._playerState();
     const session = sessionFor(this._hass, this._player && this._player.value);
-    const features = (state && state.attributes && state.attributes.supported_features) || 0;
-    const paused = state && state.state === "paused";
-    const canPause = !(session && session.webapp) && (features & PAUSE || features & PLAY);
-    this._transport.replaceChildren();
-    const previous = iconButton("jump", "mdi:skip-previous");
-    previous.title = text.previous;
-    previous.addEventListener("click", () => this._transportAction("previous"));
-    const pause = iconButton("pause", paused ? "mdi:play" : "mdi:pause");
-    pause.title = paused ? text.resume : text.pause;
-    pause.hidden = !canPause;
-    pause.addEventListener("click", () => this._transportAction("pause"));
-    const next = iconButton("jump", "mdi:skip-next");
-    next.title = text.next;
-    next.addEventListener("click", () => this._transportAction("next"));
-    this._transport.append(previous, pause, next);
+    if (session && !session.webapp) {
+      const lang = integrationLanguage(this._hass);
+      this._surahLine.textContent = playbackLine(session, strings(this._hass), lang);
+    } else if (session) {
+      this._surahLine.textContent = session.title || session.verse_key;
+    }
+    this._renderProgress(state, session);
+    if (state && state.state === "playing" && session && !session.webapp) this._startProgressClock();
+    else this._stopProgressClock();
   }
 
-  _renderProgress(state) {
-    const session = sessionFor(this._hass, this._player && this._player.value);
+  _startProgressClock() {
+    if (this._progressTimer) return;
+    this._progressTimer = window.setInterval(() => this._paintPlayback(), 1000);
+  }
+
+  _stopProgressClock() {
+    if (!this._progressTimer) return;
+    window.clearInterval(this._progressTimer);
+    this._progressTimer = null;
+  }
+
+  _renderTransport(text, state, webapp) {
+    const features = (state && state.attributes && state.attributes.supported_features) || 0;
+    const paused = state && state.state === "paused";
+    const canPause = !webapp && (features & PAUSE || features & PLAY);
+    this._previousButton.hidden = webapp;
+    this._nextButton.hidden = webapp;
+    this._previousButton.title = text.previous;
+    this._nextButton.title = text.next;
+    const forward = text.dir === "rtl" ? "mdi:skip-previous" : "mdi:skip-next";
+    const back = text.dir === "rtl" ? "mdi:skip-next" : "mdi:skip-previous";
+    setIcon(this._previousButton, back);
+    setIcon(this._nextButton, forward);
+    this._pauseButton.hidden = !canPause;
+    this._pauseButton.title = paused ? text.resume : text.pause;
+    setIcon(this._pauseButton, paused ? "mdi:play" : "mdi:pause");
+    this._transport.hidden = webapp && !canPause;
+  }
+
+  _renderProgress(state, session) {
     if (session && session.webapp) {
       this._progress.hidden = true;
       return;
     }
-    const attrs = (state && state.attributes) || {};
-    const duration = Number(attrs.media_duration);
-    const position = Number(attrs.media_position);
-    if (!Number.isFinite(duration) || duration <= 0 || !Number.isFinite(position)) {
+    const clock = playbackClock(state);
+    if (!clock || clock.duration == null) {
       this._progress.hidden = true;
       return;
     }
     this._progress.hidden = false;
-    this._elapsed.textContent = formatTime(position);
-    this._remaining.textContent = formatTime(Math.max(0, duration - position));
-    this._fill.style.width = `${Math.min(100, (position / duration) * 100)}%`;
+    this._elapsed.textContent = formatTime(clock.position);
+    this._remaining.textContent = formatTime(Math.max(0, clock.duration - clock.position));
+    this._fill.style.width = `${Math.min(100, (clock.position / clock.duration) * 100)}%`;
   }
 
   _renderVolume(state) {
-    const features = (state && state.attributes && state.attributes.supported_features) || 0;
-    if (!(features & VOLUME_SET) && !(features & VOLUME_STEP)) {
+    const attrs = (state && state.attributes) || {};
+    const features = attrs.supported_features || 0;
+    const reported = typeof attrs.volume_level === "number";
+    if (!(features & VOLUME_SET) && !(features & VOLUME_STEP) && !reported) {
       this._volume.hidden = true;
       return;
     }
     this._volume.hidden = false;
-    if (this._volume.childElementCount) return;
-    const level = state && state.attributes ? state.attributes.volume_level : 0.5;
-    const down = iconButton("icon", "mdi:volume-minus");
-    const slider = document.createElement("input");
-    slider.type = "range";
-    slider.min = "0";
-    slider.max = "100";
-    slider.value = String(Math.round((level || 0) * 100));
-    const up = iconButton("icon", "mdi:volume-plus");
-    down.addEventListener("click", () => this._volumeStep(-0.05, features));
-    up.addEventListener("click", () => this._volumeStep(0.05, features));
-    slider.addEventListener("change", (event) => {
-      this._hass.callService("media_player", "volume_set", {
-        entity_id: this._player.value,
-        volume_level: Number(event.target.value) / 100,
-      });
-    });
-    this._volume.append(down, slider, up);
+    if (!reported || this.shadowRoot.activeElement === this._volumeSlider) return;
+    if (this._volumeTarget != null) {
+      if (Math.abs(attrs.volume_level - this._volumeTarget) > 0.02) return;
+      this._volumeTarget = null;
+    }
+    this._volumeSlider.value = String(Math.round(Math.min(1, Math.max(0, attrs.volume_level)) * 100));
   }
 
-  _volumeStep(delta, features) {
+  _volumeStep(delta) {
     const entity = this._player.value;
-    if (features & VOLUME_SET) {
-      const state = this._playerState();
-      const current = (state && state.attributes && state.attributes.volume_level) || 0;
+    if (!entity) return;
+    const state = this._playerState();
+    const attrs = (state && state.attributes) || {};
+    const features = attrs.supported_features || 0;
+    const canSet = features & VOLUME_SET || typeof attrs.volume_level === "number";
+    if (canSet) {
+      const current = typeof attrs.volume_level === "number"
+        ? attrs.volume_level
+        : Number(this._volumeSlider.value) / 100;
+      const next = Math.min(1, Math.max(0, current + delta));
+      this._volumeTarget = next;
+      this._volumeSlider.value = String(Math.round(next * 100));
       this._hass.callService("media_player", "volume_set", {
         entity_id: entity,
-        volume_level: Math.min(1, Math.max(0, current + delta)),
+        volume_level: next,
       });
       return;
     }
@@ -677,12 +849,16 @@ class AlquranCloudCard extends HTMLElement {
         return;
       }
       if (session) {
+        this._status.textContent = action === "next" ? text.openingNext : text.openingPrevious;
         await this._hass.callService(
           "alquran_cloud",
           action === "next" ? "next_surah" : "previous_surah",
           {},
           { entity_id: entity }
         );
+        if (this._status.textContent === text.openingNext || this._status.textContent === text.openingPrevious) {
+          this._status.textContent = "";
+        }
         return;
       }
       const options = [...this._surah.options].map((option) => parseInt(option.value, 10));

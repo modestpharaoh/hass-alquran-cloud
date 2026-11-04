@@ -32,6 +32,7 @@ from .const import (
     CONTENT_TYPE_URL,
     END_OF_TRACK_RATIO,
     END_OF_TRACK_SLACK_SECONDS,
+    LANG_ARABIC,
     get_cache_days,
     get_display_language,
 )
@@ -47,6 +48,21 @@ ATTR_MEDIA_EXTRA = "extra"
 ListenerCallback = Callable[[], None]
 AsyncButtonFactory = Callable[[str], Awaitable[None] | Coroutine[Any, Any, None]]
 Preparer = Callable[..., Awaitable[PreparedMedia]]
+
+
+def ayah_at(spans: tuple[tuple[int, float, float], ...], position: float) -> int | None:
+    """Return the ayah whose joined-audio span contains this playback position."""
+    current: int | None = None
+    for ayah, start, end in spans:
+        if position + 1e-3 >= float(start) and position < float(end):
+            current = int(ayah)
+    if current is not None:
+        return current
+    if spans and position >= float(spans[-1][1]):
+        return int(spans[-1][0])
+    if spans:
+        return int(spans[0][0])
+    return None
 
 
 def _same_track(content_id: str, expected_url: str, marker: str) -> bool:
@@ -119,6 +135,9 @@ class PlaybackSession:
             "artist": self.artist,
             "album": self.album,
             "image_url": self.image_url,
+            "spans": [
+                [int(ayah), float(start), float(end)] for ayah, start, end in self.spans
+            ],
         }
 
 
@@ -378,6 +397,13 @@ class PlaybackSessionManager:
                 session.last_duration = float(attrs[ATTR_MEDIA_DURATION])
         except (TypeError, ValueError):
             return
+        if session.last_position is None or not session.spans:
+            return
+        ayah = ayah_at(session.spans, session.last_position)
+        if ayah is None or ayah == session.ayah:
+            return
+        session.ayah = ayah
+        self._notify_listeners()
 
     async def _async_on_call_service(self, event: Event) -> None:
         """Mark sessions interrupted when HA stops, pauses, or turns off a player."""
@@ -490,6 +516,33 @@ class PlaybackSessionManager:
         session.last_duration = None
         session.max_position = 0.0
         session.pending_play = True
+        self._announce_chapter(session)
+        self._notify_listeners()
+
+    def _announce_chapter(self, session: PlaybackSession) -> None:
+        """Publish the surah name before the joined file is ready."""
+        catalog = self.catalog
+        chapter = catalog.get_chapter(session.chapter) if catalog else None
+        if chapter is None:
+            return
+        self._apply_display(session)
+
+    def _apply_display(self, session: PlaybackSession) -> None:
+        """Store surah, reciter, and mushaf in the integration language only."""
+        language = get_display_language(self.coordinator.entry.options)
+        arabic = language == LANG_ARABIC
+        catalog = self.catalog
+        chapter = catalog.get_chapter(session.chapter) if catalog else None
+        reciter = catalog.get_reciter(session.reciter_id) if catalog else None
+        if chapter is not None:
+            name = (chapter.name_ar if arabic else chapter.name_en) or chapter.name_en or chapter.name_ar
+            session.title = f"{chapter.number:03d} · {name}"
+        if reciter is not None:
+            artist = reciter.localized_name(language)
+            if reciter.style and reciter.style not in artist:
+                artist = f"{artist} · {reciter.style}"
+            session.artist = artist
+        session.album = "مصحف المدينة" if arabic else "Madinah Mushaf"
 
     async def _async_advance(self, session: PlaybackSession) -> None:
         """Replay the range, or move to the next full surah."""
@@ -579,6 +632,7 @@ class PlaybackSessionManager:
         session.artist = media.artist
         session.album = media.album
         session.image_url = media.image_url
+        self._apply_display(session)
         session.spans = media.spans
         self._bump(session.entity_id)
         await self._async_play_url(session, media, blocking=blocking)

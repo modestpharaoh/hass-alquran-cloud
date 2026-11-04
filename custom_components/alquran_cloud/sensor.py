@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
+from .const import DOMAIN, get_display_language
 
 
 async def async_setup_entry(
@@ -58,10 +58,12 @@ class QuranActiveSessionsSensor(SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return per-player session details."""
-        return {
+        details = {
             entity_id: session.as_attr_dict()
             for entity_id, session in self._sessions.sessions.items()
         }
+        details["display_language"] = get_display_language(self._entry.options)
+        return details
 
     @property
     def device_info(self) -> DeviceInfo:
