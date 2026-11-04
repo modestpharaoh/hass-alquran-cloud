@@ -131,7 +131,7 @@ async function withinBudget() {
 
 async function evictOldest() {
   const entries = await idbMediaEntries();
-  entries.sort((a, b) => (a.value?.savedAt || 0) - (b.value?.savedAt || 0));
+  entries.sort((a, b) => ((a.value && a.value.savedAt) || 0) - ((b.value && b.value.savedAt) || 0));
   const oldest = entries[0];
   if (!oldest) return false;
   const url = oldest.key.slice('media:'.length);
@@ -192,7 +192,13 @@ async function handleMedia(url) {
 
     let task = inflight.get(url);
     if (!task) {
-      task = fillAndServe(url).finally(() => inflight.delete(url));
+      task = fillAndServe(url).then((value) => {
+        inflight.delete(url);
+        return value;
+      }, (err) => {
+        inflight.delete(url);
+        throw err;
+      });
       inflight.set(url, task);
       return await task;
     }

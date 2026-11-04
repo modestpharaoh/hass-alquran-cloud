@@ -38,7 +38,7 @@
     </div>
 
     <div id="ayah-container">
-      <img id="ayah-img" src="" alt="Ayah calligraphy">
+      <img id="ayah-img" src="assets/bismillah.png" alt="Ayah calligraphy">
     </div>
 
     <audio id="audio" playsinline></audio>
@@ -152,7 +152,9 @@
     </div>
   </div>
 
-  <script src="js/kiosk-lib.js"></script>
-  <script src="js/app.js"></script>
+  <!-- legacy.js plus the .compat.js files are the Chrome 53 build used by webOS 4. -->
+  <script src="js/legacy.js"></script>
+  <script src="js/kiosk-lib.compat.js"></script>
+  <script src="js/app.compat.js"></script>
 </body>
 </html>

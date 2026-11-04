@@ -242,3 +242,13 @@
     }
     .fav-btn:hover { background: transparent; transform: none; color: #fbbf24; }
     .fav-btn.active { color: #fbbf24; }
+
+    /* webOS 4 / Chromium 53 has no flex gap, no CSS grid, and no min(). */
+    @supports not (gap: 1px) {
+      #info-bar { max-width: 92%; }
+      #top-actions, #controls { max-width: 96%; }
+      #top-actions button, #controls button, .btn-group button { margin: 2px; }
+      .modal-list { display: block; }
+      .modal-list .item-card { display: inline-block; width: 200px; margin: 5px; vertical-align: top; }
+      .form-group, .form-row, .modal-footer, .modal-body-form { margin-top: 8px; }
+    }

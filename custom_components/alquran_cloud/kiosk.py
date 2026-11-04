@@ -106,4 +106,7 @@ class QuranKioskView:
         target = resolve_kiosk_file(KIOSK_ROOT, path or request.path.removeprefix("/api/alquran_cloud/kiosk"))
         if target is None:
             return web.Response(status=404, text="Not found")
-        return web.FileResponse(target)
+        headers = None
+        if target.suffix.lower() in {".html", ".js", ".css"}:
+            headers = {"Cache-Control": "no-cache"}
+        return web.FileResponse(target, headers=headers)

@@ -4,7 +4,7 @@
     const MEDIA_CACHE = 'quran-kiosk-media-v1';
     const KIOSK_DB = 'quran-kiosk';
     const KIOSK_STORE = 'meta';
-    const BISMILLAH_IMAGE_URL = resolveAssetUrl(location.href, 'assets/bismillah.png');
+    const BISMILLAH_IMAGE_URL = 'assets/bismillah.png';
     const AVAILABLE_SPEEDS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
     let cacheExpiryDays = 7;
     let language = 'en';
@@ -123,8 +123,15 @@
       return t('cacheStatus', { count, mode, days: cacheExpiryDays });
     }
 
+    function oldTvBrowser() {
+      const ua = navigator.userAgent || '';
+      const match = /Chrome\/(\d+)/.exec(ua);
+      const major = match ? parseInt(match[1], 10) : 0;
+      return /Web0S|webOS|SmartTV/i.test(ua) && major > 0 && major < 80;
+    }
+
     async function registerMediaWorker() {
-      if (!('serviceWorker' in navigator) || location.protocol === 'file:') return false;
+      if (!('serviceWorker' in navigator) || location.protocol === 'file:' || oldTvBrowser()) return false;
       const workerUrl = resolveAssetUrl(location.href, 'sw.js?v=3');
       try {
         const regs = await navigator.serviceWorker.getRegistrations();
@@ -218,10 +225,6 @@
     const ayahImg = document.getElementById('ayah-img');
     const infoBar = document.getElementById('info-bar');
     const bgVideo = document.getElementById('bg');
-    const bgVideoUrl = resolveAssetUrl(location.href, 'assets/landscape-tree-clouds.mp4');
-    if (bgVideo && new URL(bgVideo.src, location.href).pathname !== new URL(bgVideoUrl).pathname) {
-      bgVideo.src = bgVideoUrl;
-    }
     audio.preload = 'auto';
     const btnPlayPause = document.getElementById('btn-play-pause');
     const btnToggleBg = document.getElementById('btn-toggle-bg');
