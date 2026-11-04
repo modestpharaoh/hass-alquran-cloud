@@ -92,6 +92,7 @@ def test_kiosk_url_and_file():
         repeat=2,
         auto_surah=False,
         language="en",
+        background_video=False,
     )
     assert url.startswith("http://ha.lan:8123/api/alquran_cloud/kiosk/?")
     assert "surah=67" in url
@@ -101,6 +102,7 @@ def test_kiosk_url_and_file():
     assert "speed=1.75" in url
     assert "repeat=2" in url
     assert "auto_surah=false" in url
+    assert "background_video=false" in url
     full = build_kiosk_url(
         "http://ha.lan:8123/",
         surah=1,

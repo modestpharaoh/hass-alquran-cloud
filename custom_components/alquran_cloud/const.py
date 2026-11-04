@@ -14,7 +14,8 @@ DEFAULT_UPDATE_INTERVAL_HOURS = 24
 CONF_DISPLAY_LANGUAGE = "display_language"
 CONF_CACHE_DAYS = "cache_days"
 CONF_PLAYBACK_SPEED = "playback_speed"
-CONF_SHOW_PICTURE = "show_picture"
+CONF_WEBAPP = "webapp"
+CONF_BACKGROUND_VIDEO = "background_video"
 CONF_FAVORITE_RECITERS = "favorite_reciters"
 
 LANG_ENGLISH = "english"
@@ -24,7 +25,8 @@ DISPLAY_LANGUAGES = [LANG_ENGLISH, LANG_ARABIC]
 DEFAULT_DISPLAY_LANGUAGE = LANG_ENGLISH
 DEFAULT_CACHE_DAYS = 7
 DEFAULT_PLAYBACK_SPEED = 1.0
-DEFAULT_SHOW_PICTURE = False
+DEFAULT_WEBAPP = False
+DEFAULT_BACKGROUND_VIDEO = True
 DEFAULT_REPEAT = 1
 DEFAULT_CONTINUE_SURAH = False
 DEFAULT_LOOP = False
@@ -49,7 +51,8 @@ ATTR_REPEAT = "repeat"
 ATTR_CONTINUE_SURAH = "continue_surah"
 ATTR_LOOP = "loop"
 ATTR_SPEED = "speed"
-ATTR_SHOW_PICTURE = "show_picture"
+ATTR_WEBAPP = "webapp"
+ATTR_BACKGROUND_VIDEO = "background_video"
 
 SERVICE_PLAY = "play"
 SERVICE_STOP = "stop"
@@ -91,6 +94,16 @@ def get_cache_days(options: dict) -> int:
     except (TypeError, ValueError):
         return DEFAULT_CACHE_DAYS
     return min(MAX_CACHE_DAYS, max(MIN_CACHE_DAYS, days))
+
+
+def webapp_enabled(options: dict) -> bool:
+    """Return whether playback should open the TV web app.
+
+    `show_picture` is the previous name of this option.
+    """
+    if CONF_WEBAPP in options:
+        return bool(options[CONF_WEBAPP])
+    return bool(options.get("show_picture", DEFAULT_WEBAPP))
 
 
 def get_display_language(options: dict) -> str:

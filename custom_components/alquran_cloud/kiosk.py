@@ -42,6 +42,7 @@ def build_kiosk_url(
     repeat: int,
     auto_surah: bool,
     language: str,
+    background_video: bool = True,
 ) -> str:
     """Return the kiosk URL for one reciter and ayah range."""
     params: dict[str, str] = {
@@ -52,6 +53,7 @@ def build_kiosk_url(
         "repeat": str(int(repeat)),
         "auto_surah": "true" if auto_surah else "false",
         "language": language if language in {"en", "ar"} else "en",
+        "background_video": "true" if background_video else "false",
     }
     if int(end_ayah) < int(verses_count):
         params["to_ayah"] = str(int(end_ayah))

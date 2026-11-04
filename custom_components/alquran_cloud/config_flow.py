@@ -28,11 +28,11 @@ from .const import (
     CONF_DISPLAY_LANGUAGE,
     CONF_FAVORITE_RECITERS,
     CONF_PLAYBACK_SPEED,
-    CONF_SHOW_PICTURE,
+    CONF_WEBAPP,
     DEFAULT_CACHE_DAYS,
     DEFAULT_DISPLAY_LANGUAGE,
     DEFAULT_PLAYBACK_SPEED,
-    DEFAULT_SHOW_PICTURE,
+    DEFAULT_WEBAPP,
     DISPLAY_LANGUAGES,
     DOMAIN,
     MAX_CACHE_DAYS,
@@ -42,6 +42,7 @@ from .const import (
     get_cache_days,
     get_display_language,
     get_favorite_reciter_ids,
+    webapp_enabled,
 )
 
 
@@ -99,7 +100,7 @@ def _options_schema(defaults: dict[str, Any], reciter_options: list[dict[str, st
             )
         ),
         vol.Required(
-            CONF_SHOW_PICTURE, default=bool(defaults.get(CONF_SHOW_PICTURE, DEFAULT_SHOW_PICTURE))
+            CONF_WEBAPP, default=webapp_enabled(defaults)
         ): BooleanSelector(),
     }
     if reciter_options:
@@ -131,9 +132,7 @@ def _stored_options(user_input: dict[str, Any], previous: dict[str, Any]) -> dic
         CONF_PLAYBACK_SPEED: coerce_speed(
             user_input.get(CONF_PLAYBACK_SPEED, previous.get(CONF_PLAYBACK_SPEED, DEFAULT_PLAYBACK_SPEED))
         ),
-        CONF_SHOW_PICTURE: bool(
-            user_input.get(CONF_SHOW_PICTURE, previous.get(CONF_SHOW_PICTURE, DEFAULT_SHOW_PICTURE))
-        ),
+        CONF_WEBAPP: bool(user_input.get(CONF_WEBAPP, webapp_enabled(previous))),
         CONF_FAVORITE_RECITERS: favorites,
     }
 
@@ -163,7 +162,7 @@ class AlquranCloudConfigFlow(ConfigFlow, domain=DOMAIN):
                     CONF_DISPLAY_LANGUAGE: DEFAULT_DISPLAY_LANGUAGE,
                     CONF_CACHE_DAYS: DEFAULT_CACHE_DAYS,
                     CONF_PLAYBACK_SPEED: DEFAULT_PLAYBACK_SPEED,
-                    CONF_SHOW_PICTURE: DEFAULT_SHOW_PICTURE,
+                    CONF_WEBAPP: DEFAULT_WEBAPP,
                     CONF_FAVORITE_RECITERS: [],
                 },
                 reciter_options,

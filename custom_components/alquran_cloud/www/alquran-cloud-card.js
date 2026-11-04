@@ -21,8 +21,9 @@ const STRINGS = {
     speed: "Playback speed",
     continueSurah: "Continue to the next surah",
     loop: "Loop",
-    picture: "Surah video",
-    pictureHelp: "Opens the Quran player in the TV browser. Home Assistant does not follow the ayah after that.",
+    webapp: "Web app",
+    webappHelp: "Opens the Quran web app in the TV browser. Home Assistant does not follow the ayah after that.",
+    background: "Background video",
     onTv: "On the TV",
     tvRequired: "Choose an LG, Samsung, or Android TV.",
     play: "Play",
@@ -51,8 +52,9 @@ const STRINGS = {
     speed: "سرعة التشغيل",
     continueSurah: "متابعة السورة التالية",
     loop: "إعادة التشغيل",
-    picture: "فيديو السورة",
-    pictureHelp: "يفتح مشغّل القرآن في متصفح التلفاز. هوم أسيستنت لا يتابع الآية بعد ذلك.",
+    webapp: "تطبيق الويب",
+    webappHelp: "يفتح تطبيق القرآن في متصفح التلفاز. هوم أسيستنت لا يتابع الآية بعد ذلك.",
+    background: "فيديو الخلفية",
     onTv: "على التلفاز",
     tvRequired: "اختر تلفاز LG أو Samsung أو Android.",
     play: "تشغيل",
@@ -279,7 +281,8 @@ class AlquranCloudCard extends HTMLElement {
       repeat: 1,
       continue_surah: false,
       loop: false,
-      show_picture: false,
+      webapp: false,
+      background_video: true,
     };
   }
 
@@ -358,8 +361,9 @@ class AlquranCloudCard extends HTMLElement {
     this._speed.innerHTML = SPEEDS.map((speed) => `<option value="${speed}">${speed}×</option>`).join("");
     this._continue = this._check("continue");
     this._loop = this._check("loop");
-    this._picture = this._check("picture");
-    this._picture.addEventListener("change", () => this._onPictureChange());
+    this._webapp = this._check("webapp");
+    this._webapp.addEventListener("change", () => this._onWebappChange());
+    this._background = this._check("background");
     this._help = document.createElement("div");
     this._help.className = "help";
     const volume = document.createElement("div");
@@ -388,7 +392,8 @@ class AlquranCloudCard extends HTMLElement {
       this._speed.parentElement,
       this._continue.parentElement,
       this._loop.parentElement,
-      this._picture.parentElement,
+      this._webapp.parentElement,
+      this._background.parentElement,
       this._help,
       volume,
       actions,
@@ -434,7 +439,8 @@ class AlquranCloudCard extends HTMLElement {
     this._repeat.value = String(clampRepeat(config.repeat == null ? 1 : config.repeat));
     this._continue.checked = Boolean(config.continue_surah);
     this._loop.checked = Boolean(config.loop);
-    this._picture.checked = Boolean(config.show_picture);
+    this._webapp.checked = Boolean(config.webapp);
+    this._background.checked = config.background_video !== false;
     if (config.entity) this._preferredPlayer = config.entity;
     if (config.reciter_id) this._preferredReciter = String(config.reciter_id);
     if (config.surah) this._preferredSurah = String(config.surah);
@@ -442,11 +448,11 @@ class AlquranCloudCard extends HTMLElement {
     if (config.end_ayah) this._preferredEnd = String(config.end_ayah);
   }
 
-  _onPictureChange() {
-    if (this._picture.checked) this._loop.checked = false;
+  _onWebappChange() {
+    if (this._webapp.checked) this._loop.checked = false;
     const before = this._player.value;
     this._loadPlayers();
-    if (this._picture.checked && before && !this._player.value) {
+    if (this._webapp.checked && before && !this._player.value) {
       this._status.textContent = strings(this._hass).tvRequired;
     }
     this._syncRange();
@@ -454,7 +460,7 @@ class AlquranCloudCard extends HTMLElement {
   }
 
   _loadPlayers() {
-    const video = Boolean(this._picture && this._picture.checked);
+    const video = Boolean(this._webapp && this._webapp.checked);
     const players = mediaPlayers(this._hass, video);
     const current = this._player.value || this._preferredPlayer || "";
     const valid = players.some((item) => item.id === current);
@@ -528,8 +534,9 @@ class AlquranCloudCard extends HTMLElement {
     const full = this._isFullSurah();
     this._continue.parentElement.hidden = !full;
     if (!full) this._continue.checked = false;
-    const video = Boolean(this._picture && this._picture.checked);
+    const video = Boolean(this._webapp && this._webapp.checked);
     this._loop.parentElement.hidden = video;
+    this._background.parentElement.hidden = !video;
     if (video) this._loop.checked = false;
   }
 
@@ -549,11 +556,13 @@ class AlquranCloudCard extends HTMLElement {
     this._stopButton.textContent = text.stop;
     this._continue.parentElement.querySelector("span").textContent = text.continueSurah;
     this._loop.parentElement.querySelector("span").textContent = text.loop;
-    this._loop.parentElement.hidden = this._picture.checked;
-    this._picture.parentElement.querySelector("span").textContent = text.picture;
-    this._help.textContent = this._picture.checked
+    this._loop.parentElement.hidden = this._webapp.checked;
+    this._background.parentElement.hidden = !this._webapp.checked;
+    this._webapp.parentElement.querySelector("span").textContent = text.webapp;
+    this._background.parentElement.querySelector("span").textContent = text.background;
+    this._help.textContent = this._webapp.checked
       ? this._player.value
-        ? text.pictureHelp
+        ? text.webappHelp
         : text.tvRequired
       : "";
     const state = this._playerState();
@@ -561,8 +570,8 @@ class AlquranCloudCard extends HTMLElement {
     if (session) {
       this._surahLine.textContent = session.title || session.verse_key;
       this._reciterLine.textContent = session.artist || "";
-      this._mushafLine.textContent = session.album || (session.show_picture ? text.mushaf : "");
-      this._statePill.textContent = session.show_picture
+      this._mushafLine.textContent = session.album || (session.webapp ? text.mushaf : "");
+      this._statePill.textContent = session.webapp
         ? text.onTv
         : state && state.state === "paused"
           ? text.paused
@@ -572,7 +581,7 @@ class AlquranCloudCard extends HTMLElement {
       const reciter = this._reciter && this._reciter.selectedOptions[0];
       this._surahLine.textContent = (surah && surah.textContent) || text.idle;
       this._reciterLine.textContent = (reciter && reciter.textContent) || "";
-      this._mushafLine.textContent = this._picture.checked ? text.mushaf : "";
+      this._mushafLine.textContent = this._webapp.checked ? text.mushaf : "";
       this._statePill.textContent = text.idle;
     }
     this._renderTransport(text, state);
@@ -584,7 +593,7 @@ class AlquranCloudCard extends HTMLElement {
     const session = sessionFor(this._hass, this._player && this._player.value);
     const features = (state && state.attributes && state.attributes.supported_features) || 0;
     const paused = state && state.state === "paused";
-    const canPause = !(session && session.show_picture) && (features & PAUSE || features & PLAY);
+    const canPause = !(session && session.webapp) && (features & PAUSE || features & PLAY);
     this._transport.replaceChildren();
     const previous = iconButton("jump", "mdi:skip-previous");
     previous.title = text.previous;
@@ -601,7 +610,7 @@ class AlquranCloudCard extends HTMLElement {
 
   _renderProgress(state) {
     const session = sessionFor(this._hass, this._player && this._player.value);
-    if (session && session.show_picture) {
+    if (session && session.webapp) {
       this._progress.hidden = true;
       return;
     }
@@ -708,8 +717,9 @@ class AlquranCloudCard extends HTMLElement {
       repeat: clampRepeat(this._repeat.value),
       speed: Number(this._speed.value),
       continue_surah: this._isFullSurah() && this._continue.checked,
-      loop: this._picture.checked ? false : this._loop.checked,
-      show_picture: this._picture.checked,
+      loop: this._webapp.checked ? false : this._loop.checked,
+      webapp: this._webapp.checked,
+      background_video: this._background.checked,
     };
     if (this._end.value) data.end_ayah = Number(this._end.value);
     try {
@@ -774,7 +784,8 @@ class AlquranCloudCardEditor extends HTMLElement {
       this._speed.control.innerHTML = SPEEDS.map((speed) => `<option value="${speed}">${speed}×</option>`).join("");
       this._continue = this._switch("continue");
       this._loop = this._switch("loop");
-      this._picture = this._switch("picture");
+      this._webapp = this._switch("webapp");
+      this._background = this._switch("background");
       form.append(
         this._player.label,
         this._reciter.label,
@@ -785,7 +796,8 @@ class AlquranCloudCardEditor extends HTMLElement {
         this._speed.label,
         this._continue.label,
         this._loop.label,
-        this._picture.label,
+        this._webapp.label,
+        this._background.label,
       );
       this.shadowRoot.replaceChildren(style, form);
       this._bind();
@@ -830,7 +842,8 @@ class AlquranCloudCardEditor extends HTMLElement {
     this._speed.text.textContent = text.speed;
     this._continue.text.textContent = text.continueSurah;
     this._loop.text.textContent = text.loop;
-    this._picture.text.textContent = text.picture;
+    this._webapp.text.textContent = text.webapp;
+    this._background.text.textContent = text.background;
     fillSelect(this._reciter.control, this._reciters, config.reciter_id || "", "");
     fillSelect(this._surah.control, this._surahs, config.surah || "", "");
     fillSelect(this._start.control, this._ayahs, config.start_ayah || 1, "");
@@ -842,10 +855,12 @@ class AlquranCloudCardEditor extends HTMLElement {
     const full = this._editorFull();
     this._continue.label.classList.toggle("hidden", !full);
     this._continue.control.checked = full && Boolean(config.continue_surah);
-    const video = Boolean(config.show_picture);
+    const video = Boolean(config.webapp);
     this._loop.label.classList.toggle("hidden", video);
     this._loop.control.checked = !video && Boolean(config.loop);
-    this._picture.control.checked = video;
+    this._webapp.control.checked = video;
+    this._background.label.classList.toggle("hidden", !video);
+    this._background.control.checked = config.background_video !== false;
     const players = mediaPlayers(this._hass, video);
     const entity = config.entity && players.some((item) => item.id === config.entity) ? config.entity : "";
     fillSelect(this._player.control, players, entity, "");
@@ -891,15 +906,18 @@ class AlquranCloudCardEditor extends HTMLElement {
     this._loop.control.addEventListener("change", () => {
       this._commit({ loop: this._loop.control.checked });
     });
-    this._picture.control.addEventListener("change", () => {
-      const show = this._picture.control.checked;
+    this._webapp.control.addEventListener("change", () => {
+      const show = this._webapp.control.checked;
       const players = mediaPlayers(this._hass, show);
-      const patch = { show_picture: show };
+      const patch = { webapp: show };
       if (show) patch.loop = false;
       if (show && this._config.entity && !players.some((item) => item.id === this._config.entity)) {
         patch.entity = undefined;
       }
       this._commit(patch);
+    });
+    this._background.control.addEventListener("change", () => {
+      this._commit({ background_video: this._background.control.checked });
     });
   }
 

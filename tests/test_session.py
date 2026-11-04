@@ -35,7 +35,7 @@ def _catalog():
 
 def _manager(hass: HomeAssistant):
     async def prepare(**kwargs):
-        show = kwargs["show_picture"]
+        show = kwargs["webapp"]
         return PreparedMedia(
             url="https://ha.example/ayah.mp4" if show else "https://ha.example/range.mp3",
             content_type="video/mp4" if show else "audio/mpeg",
@@ -102,7 +102,7 @@ async def test_repeat_then_next_surah(hass: HomeAssistant):
         continue_surah=True,
         loop=False,
         speed=1,
-        show_picture=False,
+        webapp=False,
     )
     assert _play_calls(hass)[0][1]["media_content_type"] == "audio/mpeg"
     assert _play_calls(hass)[0][1]["extra"]["metadata"]["metadataType"] == 3
@@ -127,7 +127,7 @@ async def test_loop_and_continue_and_stop(hass: HomeAssistant):
         continue_surah=True,
         loop=True,
         speed=1,
-        show_picture=False,
+        webapp=False,
     )
     await _finish(manager, "media_player.room")
     looped = manager.get_session("media_player.room")
@@ -143,7 +143,7 @@ async def test_loop_and_continue_and_stop(hass: HomeAssistant):
         continue_surah=True,
         loop=False,
         speed=1,
-        show_picture=False,
+        webapp=False,
     )
     await _finish(manager, "media_player.room")
     session = manager.get_session("media_player.room")
@@ -171,7 +171,7 @@ async def test_picture_opens_tv_browser(hass: HomeAssistant):
             continue_surah=False,
             loop=True,
             speed=1,
-            show_picture=True,
+            webapp=True,
             platform="cast",
         )
     assert manager.get_session("media_player.cast") is None
@@ -186,7 +186,7 @@ async def test_picture_opens_tv_browser(hass: HomeAssistant):
         continue_surah=False,
         loop=True,
         speed=1.75,
-        show_picture=True,
+        webapp=True,
         platform="webostv",
     )
     session = manager.get_session("media_player.lg")
@@ -202,6 +202,7 @@ async def test_picture_opens_tv_browser(hass: HomeAssistant):
     assert target.startswith("http://ha.lan:8123/api/alquran_cloud/kiosk/?")
     assert "surah=1" in target and "ayah=1" in target and "to_ayah=3" in target
     assert "speed=1.75" in target and "repeat=2" in target and "auto_surah=false" in target
+    assert "background_video=true" in target
     await _finish(manager, "media_player.lg")
     assert manager.get_session("media_player.lg").chapter == 1
 
@@ -229,7 +230,7 @@ async def test_picture_opens_tv_browser(hass: HomeAssistant):
         continue_surah=True,
         loop=False,
         speed=1,
-        show_picture=True,
+        webapp=True,
         platform="androidtv",
     )
     android = [
@@ -258,7 +259,7 @@ async def test_picture_opens_tv_browser(hass: HomeAssistant):
         continue_surah=False,
         loop=False,
         speed=1,
-        show_picture=True,
+        webapp=True,
         platform="samsungtv",
     )
     browser = [args for args in calls if args[1] == "play_media" and args[2].get("media_content_type") == "browser"]
@@ -279,7 +280,7 @@ async def test_mid_track_stop_does_not_advance(hass: HomeAssistant):
         continue_surah=False,
         loop=False,
         speed=1,
-        show_picture=False,
+        webapp=False,
     )
     await manager._async_on_call_service(
         Event(

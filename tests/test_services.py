@@ -57,7 +57,8 @@ async def test_play_defaults_and_missing_target(hass: HomeAssistant):
     assert session.repeat == 1
     assert session.continue_surah is False
     assert session.speed == 1
-    assert session.show_picture is False
+    assert session.webapp is False
+    assert session.background_video is False
 
     with pytest.raises(HomeAssistantError):
         await handlers["play"](ServiceCall({"reciter_id": "ar.alafasy"}))

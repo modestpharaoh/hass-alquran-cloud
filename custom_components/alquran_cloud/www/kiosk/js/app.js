@@ -192,7 +192,7 @@
     let currentSpeed = AVAILABLE_SPEEDS.includes(requestedSpeed) ? requestedSpeed : 1;
     let maxRepeatCount = queryInt('repeat', 1, 1, 20);
     let currentRepeatCycle = 1;
-    let bgVideoEnabled = true;
+    let bgVideoEnabled = params.get('background_video') !== 'false';
 
     function languageFromQuery() {
       return languageFromSearch(params);
@@ -458,6 +458,19 @@
       btnToggleBg.textContent = bgVideoEnabled ? t('bgOn') : t('bgOff');
     }
 
+    function applyBackground() {
+      if (!bgVideo) return;
+      bgVideo.classList.toggle('hidden', !bgVideoEnabled);
+      if (btnToggleBg) btnToggleBg.classList.toggle('active', bgVideoEnabled);
+      if (bgVideoEnabled) {
+        const pending = bgVideo.play();
+        if (pending && typeof pending.catch === 'function') pending.catch(() => {});
+      } else {
+        bgVideo.pause();
+      }
+      updateBgButton();
+    }
+
     function updateAutoButton() {
       btnAutoSurah.textContent = autoNextSurah ? t('autoOn') : t('autoOff');
     }
@@ -527,7 +540,7 @@
       });
       updateLanguageButton();
       updatePlayButton();
-      updateBgButton();
+      applyBackground();
       updateAutoButton();
       updateRangeUI();
       updateRepeatUI();
@@ -1129,9 +1142,7 @@
     // Toggle Background Video
     btnToggleBg.onclick = () => {
       bgVideoEnabled = !bgVideoEnabled;
-      bgVideo.classList.toggle('hidden', !bgVideoEnabled);
-      btnToggleBg.classList.toggle('active', bgVideoEnabled);
-      updateBgButton();
+      applyBackground();
     };
 
     // Toggle Auto Surah Advance

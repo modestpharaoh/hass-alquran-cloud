@@ -3,19 +3,19 @@
     "step": {
       "user": {
         "title": "Al Quran Cloud",
-        "description": "Play Al Quran Cloud. Audio joins the ayah MP3s. Surah video opens the player in an LG, Samsung, or Android TV browser.",
+        "description": "Play Al Quran Cloud. Audio joins the ayah MP3s. The web app opens in an LG, Samsung, or Android TV browser.",
         "data": {
           "display_language": "Display language",
           "cache_days": "Joined audio cache (days)",
           "playback_speed": "Default playback speed",
-          "show_picture": "Surah video",
+          "webapp": "Web app",
           "favorite_reciters": "Favorite reciters"
         },
         "data_description": {
           "display_language": "Language used for reciter and surah names.",
           "cache_days": "How many days to keep a joined MP3 before building it again (1-90).",
-          "playback_speed": "Speeds other than 1 need ffmpeg and an HTTPS Home Assistant URL. Surah video sends this speed to the TV browser.",
-          "show_picture": "Open the Quran player in the browser of an LG, Samsung, or Android TV. Home Assistant does not follow the ayah after that.",
+          "playback_speed": "Speeds other than 1 need ffmpeg and an HTTPS Home Assistant URL. The web app sends this speed to the TV browser.",
+          "webapp": "Open the Quran web app in the browser of an LG, Samsung, or Android TV. Home Assistant does not follow the ayah after that.",
           "favorite_reciters": "Shown at the top of the Al Quran Cloud media source after the catalog loads."
         }
       }
@@ -32,14 +32,14 @@
           "display_language": "Display language",
           "cache_days": "Joined audio cache (days)",
           "playback_speed": "Default playback speed",
-          "show_picture": "Surah video",
+          "webapp": "Web app",
           "favorite_reciters": "Favorite reciters"
         },
         "data_description": {
           "display_language": "Language used for reciter and surah names.",
           "cache_days": "How many days to keep a joined MP3 before building it again (1-90).",
-          "playback_speed": "Speeds other than 1 need ffmpeg and an HTTPS Home Assistant URL. Surah video sends this speed to the TV browser.",
-          "show_picture": "Open the Quran player in the browser of an LG, Samsung, or Android TV. Home Assistant does not follow the ayah after that.",
+          "playback_speed": "Speeds other than 1 need ffmpeg and an HTTPS Home Assistant URL. The web app sends this speed to the TV browser.",
+          "webapp": "Open the Quran web app in the browser of an LG, Samsung, or Android TV. Home Assistant does not follow the ayah after that.",
           "favorite_reciters": "Shown at the top of the Al Quran Cloud media source after the catalog loads."
         }
       }

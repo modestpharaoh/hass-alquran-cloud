@@ -579,12 +579,12 @@ async def prepare_playback(
     speed: float = 1.0,
     cache_days: int | None = None,
     api: Any = None,
-    show_picture: bool = False,
+    webapp: bool = False,
     **_extra: Any,
 ) -> PreparedMedia:
     """Build or reuse one joined MP3, then return the URL to play."""
-    if show_picture:
-        raise LocalMediaError("Surah video opens in a TV browser and is not built as a file.")
+    if webapp:
+        raise LocalMediaError("The web app opens in a TV browser and is not built as a file.")
     days = DEFAULT_CACHE_DAYS if cache_days is None else cache_days
     store.purge_expired(days)
     start, end = range_bounds(chapter, start_ayah, end_ayah)

@@ -52,7 +52,7 @@ play:
           mode: box
     speed:
       name: Playback speed
-      description: 0.75, 1, 1.25, 1.5, 1.75, or 2. Audio speeds other than 1 need ffmpeg and an HTTPS URL. Surah video sends this speed to the TV browser.
+      description: 0.75, 1, 1.25, 1.5, 1.75, or 2. Audio speeds other than 1 need ffmpeg and an HTTPS URL. The web app sends this speed to the TV browser.
       required: false
       selector:
         number:
@@ -74,10 +74,17 @@ play:
       default: false
       selector:
         boolean:
-    show_picture:
-      name: Surah video
-      description: Open the Quran player in the browser of an LG, Samsung, or Android TV. Home Assistant does not follow the ayah after that.
+    webapp:
+      name: Web app
+      description: Open the Quran web app in the browser of an LG, Samsung, or Android TV. Home Assistant does not follow the ayah after that.
       required: false
+      selector:
+        boolean:
+    background_video:
+      name: Background video
+      description: Play the landscape video behind the web app. Ignored for joined audio.
+      required: false
+      default: true
       selector:
         boolean:
 
@@ -90,14 +97,14 @@ stop:
 
 next_surah:
   name: Next surah
-  description: Play the next full surah with the same repeat, speed, and picture setting.
+  description: Play the next full surah with the same repeat, speed, and web app setting.
   target:
     entity:
       domain: media_player
 
 previous_surah:
   name: Previous surah
-  description: Play the previous full surah with the same repeat, speed, and picture setting.
+  description: Play the previous full surah with the same repeat, speed, and web app setting.
   target:
     entity:
       domain: media_player

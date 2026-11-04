@@ -21,16 +21,16 @@ from .const import (
     ATTR_START_AYAH,
     ATTR_LOOP,
     ATTR_RECITER_ID,
-    ATTR_SHOW_PICTURE,
+    ATTR_BACKGROUND_VIDEO,
     ATTR_SPEED,
     ATTR_SURAH,
+    ATTR_WEBAPP,
     CONF_PLAYBACK_SPEED,
-    CONF_SHOW_PICTURE,
+    DEFAULT_BACKGROUND_VIDEO,
     DEFAULT_CONTINUE_SURAH,
     DEFAULT_LOOP,
     DEFAULT_PLAYBACK_SPEED,
     DEFAULT_REPEAT,
-    DEFAULT_SHOW_PICTURE,
     MAX_REPEAT,
     MIN_REPEAT,
     DOMAIN,
@@ -44,6 +44,7 @@ from .const import (
     SERVICE_PREVIOUS_SURAH,
     SERVICE_STOP,
     coerce_speed,
+    webapp_enabled,
 )
 from .coordinator import QuranCoordinator
 from .session import PlaybackSessionManager
@@ -61,7 +62,8 @@ PLAY_SCHEMA = vol.Schema(
         ),
         vol.Optional(ATTR_CONTINUE_SURAH, default=DEFAULT_CONTINUE_SURAH): cv.boolean,
         vol.Optional(ATTR_LOOP, default=DEFAULT_LOOP): cv.boolean,
-        vol.Optional(ATTR_SHOW_PICTURE): cv.boolean,
+        vol.Optional(ATTR_WEBAPP): cv.boolean,
+        vol.Optional(ATTR_BACKGROUND_VIDEO, default=DEFAULT_BACKGROUND_VIDEO): cv.boolean,
         vol.Optional(ATTR_SPEED): vol.All(vol.Coerce(float), vol.In(PLAYBACK_SPEEDS)),
     },
     extra=vol.ALLOW_EXTRA,
@@ -148,9 +150,13 @@ def async_register_services(
             speed = coerce_speed(call.data.get(ATTR_SPEED, options.get(CONF_PLAYBACK_SPEED, DEFAULT_PLAYBACK_SPEED)))
         except ValueError as err:
             raise HomeAssistantError(str(err)) from err
-        show_picture = bool(
-            call.data.get(ATTR_SHOW_PICTURE, options.get(CONF_SHOW_PICTURE, DEFAULT_SHOW_PICTURE))
-        )
+        if ATTR_WEBAPP in call.data:
+            webapp = bool(call.data[ATTR_WEBAPP])
+        elif "show_picture" in call.data:
+            webapp = bool(call.data["show_picture"])
+        else:
+            webapp = webapp_enabled(options)
+        background_video = bool(call.data.get(ATTR_BACKGROUND_VIDEO, DEFAULT_BACKGROUND_VIDEO))
 
         for entity_id in await _entity_ids(call):
             try:
@@ -164,7 +170,8 @@ def async_register_services(
                     continue_surah=bool(call.data.get(ATTR_CONTINUE_SURAH, DEFAULT_CONTINUE_SURAH)) and full,
                     loop=bool(call.data.get(ATTR_LOOP, DEFAULT_LOOP)),
                     speed=speed,
-                    show_picture=show_picture,
+                    webapp=webapp,
+                    background_video=background_video,
                     platform=player_platform(hass, entity_id),
                 )
             except (ValueError, QuranApiError, LocalMediaError) as err:

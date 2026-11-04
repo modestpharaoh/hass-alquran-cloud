@@ -77,8 +77,9 @@ class PlaybackSession:
     continue_surah: bool
     loop: bool
     speed: float
-    show_picture: bool
+    webapp: bool
     platform: str
+    background_video: bool = True
     origin_chapter: int = 0
     origin_start: int = 1
     origin_end: int = 1
@@ -111,7 +112,8 @@ class PlaybackSession:
             "continue_surah": self.continue_surah,
             "loop": self.loop,
             "speed": self.speed,
-            "show_picture": self.show_picture,
+            "webapp": self.webapp,
+            "background_video": self.background_video,
             "url": self.expected_url,
             "title": self.title,
             "artist": self.artist,
@@ -220,7 +222,7 @@ class PlaybackSessionManager:
         if self._preparer is None:
             raise ValueError("Playback is not ready")
         return await self._preparer(
-            show_picture=False,
+            webapp=False,
             platform=session.platform,
             catalog=catalog,
             reciter=reciter,
@@ -243,11 +245,12 @@ class PlaybackSessionManager:
         continue_surah: bool,
         loop: bool,
         speed: float,
-        show_picture: bool,
+        webapp: bool,
+        background_video: bool = True,
         platform: str = "",
     ) -> PlaybackSession:
         """Start or replace a session and play one cached surah or ayah range."""
-        if show_picture:
+        if webapp:
             loop = False
         end = chapter.verses_count if end_ayah in (None, 0) else int(end_ayah)
         if start_ayah < 1 or end > chapter.verses_count or end < start_ayah:
@@ -269,7 +272,8 @@ class PlaybackSessionManager:
             continue_surah=continue_surah and full,
             loop=loop,
             speed=speed,
-            show_picture=show_picture,
+            webapp=webapp,
+            background_video=bool(background_video) and webapp,
             platform=platform,
             origin_chapter=chapter.number,
             origin_start=start_ayah,
@@ -302,7 +306,7 @@ class PlaybackSessionManager:
 
     async def _async_stop_player(self, entity_id: str, session: PlaybackSession | None) -> None:
         """Stop audio, or send Home when a TV browser was opened."""
-        if session is not None and session.show_picture and session.platform == "androidtv":
+        if session is not None and session.webapp and session.platform == "androidtv":
             await self.hass.services.async_call(
                 "androidtv",
                 "adb_command",
@@ -310,7 +314,7 @@ class PlaybackSessionManager:
                 blocking=False,
             )
             return
-        if session is not None and session.show_picture and session.platform == "webostv":
+        if session is not None and session.webapp and session.platform == "webostv":
             await self.hass.services.async_call(
                 "webostv",
                 "button",
@@ -318,7 +322,7 @@ class PlaybackSessionManager:
                 blocking=False,
             )
             return
-        if session is not None and session.show_picture:
+        if session is not None and session.webapp:
             return
         await self.hass.services.async_call(
             MEDIA_PLAYER_DOMAIN,
@@ -416,7 +420,7 @@ class PlaybackSessionManager:
         session = self._sessions.get(entity_id)
         if session is None or not session.active or entity_id in self._stopping:
             return
-        if session.show_picture:
+        if session.webapp:
             return
 
         new_state_val = new_state.state
@@ -567,8 +571,8 @@ class PlaybackSessionManager:
             self._advancing.discard(entity_id)
 
     async def _async_play_current(self, session: PlaybackSession, *, blocking: bool) -> None:
-        if session.show_picture:
-            await self._async_open_picture(session, blocking=blocking)
+        if session.webapp:
+            await self._async_open_webapp(session, blocking=blocking)
             return
         media = await self._async_prepare(session)
         session.expected_url = media.url
@@ -583,11 +587,11 @@ class PlaybackSessionManager:
         if media.seek:
             await self._async_seek(session.entity_id, media.seek)
 
-    async def _async_open_picture(self, session: PlaybackSession, *, blocking: bool) -> None:
-        """Open the kiosk in a TV browser and leave playback there."""
+    async def _async_open_webapp(self, session: PlaybackSession, *, blocking: bool) -> None:
+        """Open the web app in a TV browser and leave playback there."""
         if session.platform not in VIDEO_BROWSER_PLATFORMS:
             raise ValueError(
-                "Surah video opens in a TV browser. Choose an LG webOS, Samsung, or Android TV player."
+                "The web app opens in a TV browser. Choose an LG webOS, Samsung, or Android TV player."
             )
         catalog = self.catalog
         if catalog is None:
@@ -608,6 +612,7 @@ class PlaybackSessionManager:
             repeat=session.repeat,
             auto_surah=session.continue_surah,
             language=kiosk_language(language),
+            background_video=session.background_video,
         )
         session.expected_url = url
         session.marker = ""
