@@ -233,13 +233,27 @@
       display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
       padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.1);
     }
+    /* Drawn marks. webOS 4 has no emoji font, so these stay SVG. */
+    #top-actions .ico,
+    #controls .ico {
+      width: 16px; height: 16px; flex: 0 0 auto; display: block;
+      fill: currentColor; margin: 0 4px;
+    }
+    svg.ico[hidden] { display: none !important; }
     #controls button { direction: ltr; }
+    html[dir="rtl"] #btn-prev-surah,
+    html[dir="rtl"] #btn-prev-ayah,
+    html[dir="rtl"] #btn-next-surah,
+    html[dir="rtl"] #btn-next-ayah { flex-direction: row-reverse; }
+    html[dir="rtl"] #controls .ico-dir { transform: scaleX(-1); }
     .item-title-row { display: flex; align-items: flex-start; gap: 6px; }
     .item-title-row .item-title { flex: 1; }
     .fav-btn {
       background: transparent; border: none; color: #64748b;
       padding: 0 2px; font-size: 1.15rem; line-height: 1; flex-shrink: 0;
     }
+    .fav-btn .star { width: 1.15rem; height: 1.15rem; display: block; fill: currentColor; }
+    .fav-btn .star-outline { fill: none; stroke: currentColor; stroke-width: 1.6; }
     .fav-btn:hover { background: transparent; transform: none; color: #fbbf24; }
     .fav-btn.active { color: #fbbf24; }
 

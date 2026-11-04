@@ -246,12 +246,12 @@
         surahsBtn: 'Surahs',
         ayahsLabel: 'Ayahs',
         settingsBtn: 'Settings',
-        prevSurah: '⏮ Previous surah',
-        prevAyah: '◀ Previous ayah',
-        nextAyah: 'Next ayah ▶',
-        nextSurah: 'Next surah ⏭',
-        play: '▶ Play',
-        pause: '⏸ Pause',
+        prevSurah: 'Previous surah',
+        prevAyah: 'Previous ayah',
+        nextAyah: 'Next ayah',
+        nextSurah: 'Next surah',
+        play: 'Play',
+        pause: 'Pause',
         surahsTitle: 'Surahs',
         surahSearch: 'Search by number or name...',
         recitersTitle: 'Reciters',
@@ -295,8 +295,8 @@
         fullSurahLine: '{name} — ayah {ayah} · full surah',
         surahsDone: 'requested surahs finished',
         done: 'recitation complete',
-        bgOn: '🎥 Background: on',
-        bgOff: '🎥 Background: off',
+        bgOn: 'Background: on',
+        bgOff: 'Background: off',
         autoOn: 'Auto next: on',
         autoOff: 'Auto next: off',
         loopOn: 'Loop: on',
@@ -313,12 +313,12 @@
         surahsBtn: 'السور',
         ayahsLabel: 'الآيات',
         settingsBtn: 'الإعدادات',
-        prevSurah: 'السورة السابقة ⏭',
-        prevAyah: 'الآية السابقة ▶',
-        nextAyah: '◀ الآية التالية',
-        nextSurah: '⏮ السورة التالية',
-        play: '▶ تشغيل',
-        pause: '⏸ إيقاف',
+        prevSurah: 'السورة السابقة',
+        prevAyah: 'الآية السابقة',
+        nextAyah: 'الآية التالية',
+        nextSurah: 'السورة التالية',
+        play: 'تشغيل',
+        pause: 'إيقاف',
         surahsTitle: 'قائمة السور',
         surahSearch: 'ابحث برقم أو اسم السورة...',
         recitersTitle: 'اختر القارئ',
@@ -362,8 +362,8 @@
         fullSurahLine: '{name} - آية {ayah} · تلاوة السورة كاملة',
         surahsDone: 'انتهت السور المطلوبة',
         done: 'اكتمل التلاوة',
-        bgOn: '🎥 خلفية: تشغيل',
-        bgOff: '🎥 خلفية: إخفاء',
+        bgOn: 'خلفية: تشغيل',
+        bgOff: 'خلفية: إخفاء',
         autoOn: 'التالي تلقائياً: تفعيل',
         autoOff: 'التالي تلقائياً: تعطيل',
         loopOn: 'الإعادة: تفعيل',
@@ -391,8 +391,17 @@
     let imageToken = 0;
     let imageTimer = 0;
 
+    function setIconShown(icon, shown) {
+      if (!icon) return;
+      if (shown) icon.removeAttribute('hidden');
+      else icon.setAttribute('hidden', '');
+    }
+
     function updatePlayButton() {
-      btnPlayPause.textContent = continuingPlayback ? t('pause') : t('play');
+      const label = document.getElementById('play-label');
+      if (label) label.textContent = continuingPlayback ? t('pause') : t('play');
+      setIconShown(btnPlayPause.querySelector('.ico-play'), !continuingPlayback);
+      setIconShown(btnPlayPause.querySelector('.ico-pause'), continuingPlayback);
       btnPlayPause.classList.toggle('active', continuingPlayback);
     }
 
@@ -464,7 +473,8 @@
     }
 
     function updateBgButton() {
-      btnToggleBg.textContent = bgVideoEnabled ? t('bgOn') : t('bgOff');
+      const label = document.getElementById('bg-label');
+      if (label) label.textContent = bgVideoEnabled ? t('bgOn') : t('bgOff');
     }
 
     function applyBackground() {
@@ -753,7 +763,7 @@
         const fullSurah = r.type === 'surahbysurah';
         card.innerHTML = `
           <div class="item-title-row">
-            <button type="button" class="fav-btn ${favorite ? 'active' : ''}" title="${escapeHtml(t('favorite'))}">${favorite ? '★' : '☆'}</button>
+            <button type="button" class="fav-btn ${favorite ? 'active' : ''}" title="${escapeHtml(t('favorite'))}">${favorite ? '<svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>' : '<svg class="star star-outline" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>'}</button>
             <span class="item-title">${escapeHtml(reciterPrimaryName(r))}</span>
           </div>
           <span class="item-sub">${escapeHtml(reciterSecondaryName(r))}</span>

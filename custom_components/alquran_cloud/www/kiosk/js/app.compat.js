@@ -248,12 +248,12 @@ const STRINGS = {
     surahsBtn: "Surahs",
     ayahsLabel: "Ayahs",
     settingsBtn: "Settings",
-    prevSurah: "\u23EE Previous surah",
-    prevAyah: "\u25C0 Previous ayah",
-    nextAyah: "Next ayah \u25B6",
-    nextSurah: "Next surah \u23ED",
-    play: "\u25B6 Play",
-    pause: "\u23F8 Pause",
+    prevSurah: "Previous surah",
+    prevAyah: "Previous ayah",
+    nextAyah: "Next ayah",
+    nextSurah: "Next surah",
+    play: "Play",
+    pause: "Pause",
     surahsTitle: "Surahs",
     surahSearch: "Search by number or name...",
     recitersTitle: "Reciters",
@@ -297,8 +297,8 @@ const STRINGS = {
     fullSurahLine: "{name} \u2014 ayah {ayah} \xB7 full surah",
     surahsDone: "requested surahs finished",
     done: "recitation complete",
-    bgOn: "\u{1F3A5} Background: on",
-    bgOff: "\u{1F3A5} Background: off",
+    bgOn: "Background: on",
+    bgOff: "Background: off",
     autoOn: "Auto next: on",
     autoOff: "Auto next: off",
     loopOn: "Loop: on",
@@ -315,12 +315,12 @@ const STRINGS = {
     surahsBtn: "\u0627\u0644\u0633\u0648\u0631",
     ayahsLabel: "\u0627\u0644\u0622\u064A\u0627\u062A",
     settingsBtn: "\u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A",
-    prevSurah: "\u0627\u0644\u0633\u0648\u0631\u0629 \u0627\u0644\u0633\u0627\u0628\u0642\u0629 \u23ED",
-    prevAyah: "\u0627\u0644\u0622\u064A\u0629 \u0627\u0644\u0633\u0627\u0628\u0642\u0629 \u25B6",
-    nextAyah: "\u25C0 \u0627\u0644\u0622\u064A\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629",
-    nextSurah: "\u23EE \u0627\u0644\u0633\u0648\u0631\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629",
-    play: "\u25B6 \u062A\u0634\u063A\u064A\u0644",
-    pause: "\u23F8 \u0625\u064A\u0642\u0627\u0641",
+    prevSurah: "\u0627\u0644\u0633\u0648\u0631\u0629 \u0627\u0644\u0633\u0627\u0628\u0642\u0629",
+    prevAyah: "\u0627\u0644\u0622\u064A\u0629 \u0627\u0644\u0633\u0627\u0628\u0642\u0629",
+    nextAyah: "\u0627\u0644\u0622\u064A\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629",
+    nextSurah: "\u0627\u0644\u0633\u0648\u0631\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629",
+    play: "\u062A\u0634\u063A\u064A\u0644",
+    pause: "\u0625\u064A\u0642\u0627\u0641",
     surahsTitle: "\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0633\u0648\u0631",
     surahSearch: "\u0627\u0628\u062D\u062B \u0628\u0631\u0642\u0645 \u0623\u0648 \u0627\u0633\u0645 \u0627\u0644\u0633\u0648\u0631\u0629...",
     recitersTitle: "\u0627\u062E\u062A\u0631 \u0627\u0644\u0642\u0627\u0631\u0626",
@@ -364,8 +364,8 @@ const STRINGS = {
     fullSurahLine: "{name} - \u0622\u064A\u0629 {ayah} \xB7 \u062A\u0644\u0627\u0648\u0629 \u0627\u0644\u0633\u0648\u0631\u0629 \u0643\u0627\u0645\u0644\u0629",
     surahsDone: "\u0627\u0646\u062A\u0647\u062A \u0627\u0644\u0633\u0648\u0631 \u0627\u0644\u0645\u0637\u0644\u0648\u0628\u0629",
     done: "\u0627\u0643\u062A\u0645\u0644 \u0627\u0644\u062A\u0644\u0627\u0648\u0629",
-    bgOn: "\u{1F3A5} \u062E\u0644\u0641\u064A\u0629: \u062A\u0634\u063A\u064A\u0644",
-    bgOff: "\u{1F3A5} \u062E\u0644\u0641\u064A\u0629: \u0625\u062E\u0641\u0627\u0621",
+    bgOn: "\u062E\u0644\u0641\u064A\u0629: \u062A\u0634\u063A\u064A\u0644",
+    bgOff: "\u062E\u0644\u0641\u064A\u0629: \u0625\u062E\u0641\u0627\u0621",
     autoOn: "\u0627\u0644\u062A\u0627\u0644\u064A \u062A\u0644\u0642\u0627\u0626\u064A\u0627\u064B: \u062A\u0641\u0639\u064A\u0644",
     autoOff: "\u0627\u0644\u062A\u0627\u0644\u064A \u062A\u0644\u0642\u0627\u0626\u064A\u0627\u064B: \u062A\u0639\u0637\u064A\u0644",
     loopOn: "\u0627\u0644\u0625\u0639\u0627\u062F\u0629: \u062A\u0641\u0639\u064A\u0644",
@@ -393,8 +393,16 @@ let clipToken = 0;
 let loadToken = 0;
 let imageToken = 0;
 let imageTimer = 0;
+function setIconShown(icon, shown) {
+  if (!icon) return;
+  if (shown) icon.removeAttribute("hidden");
+  else icon.setAttribute("hidden", "");
+}
 function updatePlayButton() {
-  btnPlayPause.textContent = continuingPlayback ? t("pause") : t("play");
+  const label = document.getElementById("play-label");
+  if (label) label.textContent = continuingPlayback ? t("pause") : t("play");
+  setIconShown(btnPlayPause.querySelector(".ico-play"), !continuingPlayback);
+  setIconShown(btnPlayPause.querySelector(".ico-pause"), continuingPlayback);
   btnPlayPause.classList.toggle("active", continuingPlayback);
 }
 function applyPlaybackRate() {
@@ -459,7 +467,8 @@ function stopPlaybackButton() {
   updatePlayButton();
 }
 function updateBgButton() {
-  btnToggleBg.textContent = bgVideoEnabled ? t("bgOn") : t("bgOff");
+  const label = document.getElementById("bg-label");
+  if (label) label.textContent = bgVideoEnabled ? t("bgOn") : t("bgOff");
 }
 function applyBackground() {
   if (!bgVideo) return;
@@ -713,7 +722,7 @@ function renderReciterGrid(list) {
     const favorite = isFavorite(r.id);
     card.className = "item-card ".concat(r.id === reciter ? "active" : "", " ").concat(favorite ? "favorite" : "");
     const fullSurah = r.type === "surahbysurah";
-    card.innerHTML = '\n          <div class="item-title-row">\n            <button type="button" class="fav-btn '.concat(favorite ? "active" : "", '" title="').concat(escapeHtml(t("favorite")), '">').concat(favorite ? "\u2605" : "\u2606", '</button>\n            <span class="item-title">').concat(escapeHtml(reciterPrimaryName(r)), '</span>\n          </div>\n          <span class="item-sub">').concat(escapeHtml(reciterSecondaryName(r)), '</span>\n          <span class="item-kind ').concat(fullSurah ? "full" : "", '">').concat(escapeHtml(editionKindLabel(r)), '</span>\n          <div class="item-id-row">\n            <code class="item-id" title="').concat(escapeHtml(t("copyId", { id: r.id })), '">').concat(escapeHtml(r.id), '</code>\n            <button type="button" class="copy-id">').concat(escapeHtml(t("copy")), "</button>\n          </div>\n        ");
+    card.innerHTML = '\n          <div class="item-title-row">\n            <button type="button" class="fav-btn '.concat(favorite ? "active" : "", '" title="').concat(escapeHtml(t("favorite")), '">').concat(favorite ? '<svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>' : '<svg class="star star-outline" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>', '</button>\n            <span class="item-title">').concat(escapeHtml(reciterPrimaryName(r)), '</span>\n          </div>\n          <span class="item-sub">').concat(escapeHtml(reciterSecondaryName(r)), '</span>\n          <span class="item-kind ').concat(fullSurah ? "full" : "", '">').concat(escapeHtml(editionKindLabel(r)), '</span>\n          <div class="item-id-row">\n            <code class="item-id" title="').concat(escapeHtml(t("copyId", { id: r.id })), '">').concat(escapeHtml(r.id), '</code>\n            <button type="button" class="copy-id">').concat(escapeHtml(t("copy")), "</button>\n          </div>\n        ");
     const copyBtn = card.querySelector(".copy-id");
     const copy = (event) => {
       event.stopPropagation();
