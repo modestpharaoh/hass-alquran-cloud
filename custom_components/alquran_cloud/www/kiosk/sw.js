@@ -1,8 +1,6 @@
 importScripts('js/kiosk-lib.js');
 
 const MEDIA_CACHE = 'quran-kiosk-media-v1';
-const STATIC_CACHE = 'quran-kiosk-static-v1';
-const BISMILLAH_IMAGE = '/assets/bismillah.png';
 const DB_NAME = 'quran-kiosk';
 const DB_VERSION = 1;
 const META_STORE = 'meta';
@@ -10,87 +8,47 @@ const SETTINGS_KEY = 'settings';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_DAYS = 7;
 const inflight = new Map();
-const localBodies = new Map();
-const BACKGROUND_VIDEO = '/assets/landscape-tree-clouds.mp4';
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(STATIC_CACHE)
-      .then((cache) => cache.add(new URL(BISMILLAH_IMAGE, self.location.href).href))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(
+      keys
+        .filter((key) => key.startsWith('quran-kiosk-static-'))
+        .map((key) => caches.delete(key))
+    );
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  const dest = event.request.destination;
+  // Media elements must read the network response themselves. This worker used
+  // to answer them with a no-cors body, which is opaque: the bismillah image
+  // stays broken, and webOS will not play the audio.
+  if (dest === 'audio' || dest === 'image' || dest === 'video') return;
   const url = event.request.url.split('#')[0];
-  if (isSameOriginAsset(url, self.location.origin, BISMILLAH_IMAGE)) {
-    event.respondWith(handleStatic(event.request, url));
-    return;
-  }
-  if (isSameOriginAsset(url, self.location.origin, BACKGROUND_VIDEO)) {
-    event.respondWith(handleLocalVideo(event.request, url));
-    return;
-  }
-  if (!isCachedMedia(url)) return;
+  if (isMediaFile(url) || !isCachedMedia(url)) return;
   event.respondWith(handleMedia(url));
 });
+
+function isMediaFile(raw) {
+  try {
+    return /\.(mp3|m4a|mp4|png|jpe?g|webp|gif|svg)$/i.test(new URL(raw).pathname);
+  } catch (err) {
+    return false;
+  }
+}
 
 self.addEventListener('message', (event) => {
   if (!event.data || event.data.type !== 'CLEAR_MEDIA') return;
   event.waitUntil(clearMediaCache());
 });
-
-async function handleStatic(request, url) {
-  const cache = await caches.open(STATIC_CACHE);
-  const hit = await cache.match(url);
-  if (hit) return hit;
-  const fresh = await fetch(request);
-  if (fresh.ok) await cache.put(url, fresh.clone());
-  return fresh;
-}
-
-async function loadLocalVideo(url) {
-  if (localBodies.has(url)) return localBodies.get(url);
-  const hit = await readFresh(url);
-  if (hit) {
-    const body = await hit.arrayBuffer();
-    localBodies.set(url, body);
-    return body;
-  }
-  const fresh = await fetch(url, { cache: 'reload' });
-  if (!fresh.ok) throw new Error('Background video failed');
-  const body = await fresh.arrayBuffer();
-  localBodies.set(url, body);
-  await storeResponse(url, new Response(body.slice(0), {
-    status: 200,
-    headers: {
-      'Content-Type': 'video/mp4',
-      'Content-Length': String(body.byteLength)
-    }
-  }));
-  return body;
-}
-
-async function handleLocalVideo(request, url) {
-  try {
-    if (await expiryMs() <= 0) return fetch(request);
-    let task = inflight.get(url);
-    if (!task) {
-      task = loadLocalVideo(url).finally(() => inflight.delete(url));
-      inflight.set(url, task);
-    }
-    const body = await task;
-    return videoResponse(body, request.headers.get('range'));
-  } catch (err) {
-    console.warn('Background video cache failed', err);
-    return fetch(request);
-  }
-}
 
 function openDb() {
   return new Promise((resolve, reject) => {
@@ -256,7 +214,6 @@ async function handleMedia(url) {
 }
 
 async function clearMediaCache() {
-  localBodies.clear();
   await caches.delete(MEDIA_CACHE);
   const entries = await idbMediaEntries();
   await Promise.all(entries.map((entry) => idbDelete(entry.key)));

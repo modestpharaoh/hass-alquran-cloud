@@ -4,7 +4,7 @@
     const MEDIA_CACHE = 'quran-kiosk-media-v1';
     const KIOSK_DB = 'quran-kiosk';
     const KIOSK_STORE = 'meta';
-    const BISMILLAH_IMAGE_URL = 'assets/bismillah.png';
+    const BISMILLAH_IMAGE_URL = resolveAssetUrl(location.href, 'assets/bismillah.png');
     const AVAILABLE_SPEEDS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
     let cacheExpiryDays = 7;
     let language = 'en';
@@ -125,19 +125,31 @@
 
     async function registerMediaWorker() {
       if (!('serviceWorker' in navigator) || location.protocol === 'file:') return false;
+      const workerUrl = resolveAssetUrl(location.href, 'sw.js?v=3');
       try {
-        await navigator.serviceWorker.register('./sw.js');
-        await navigator.serviceWorker.ready;
-        if (!navigator.serviceWorker.controller) {
-          await new Promise((resolve) => {
-            const timer = setTimeout(resolve, 2500);
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-              clearTimeout(timer);
-              resolve();
-            }, { once: true });
-          });
+        const regs = await navigator.serviceWorker.getRegistrations();
+        const stale = regs.filter((reg) => {
+          const script = (reg.active || reg.waiting || reg.installing || {}).scriptURL || '';
+          return script.split('#')[0] !== workerUrl;
+        });
+        if (stale.length) {
+          await Promise.all(stale.map((reg) => reg.unregister()));
+          const controller = navigator.serviceWorker.controller;
+          if (controller && controller.scriptURL.split('#')[0] !== workerUrl && sessionStorage.getItem('kiosk-sw-reset') !== workerUrl) {
+            sessionStorage.setItem('kiosk-sw-reset', workerUrl);
+            location.reload();
+            return false;
+          }
         }
-        return Boolean(navigator.serviceWorker.controller);
+        const registered = await Promise.race([
+          navigator.serviceWorker.register(workerUrl, { updateViaCache: 'none' }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('service worker timeout')), 2000))
+        ]);
+        await Promise.race([
+          navigator.serviceWorker.ready,
+          new Promise((resolve) => setTimeout(resolve, 1000))
+        ]);
+        return Boolean(navigator.serviceWorker.controller || registered);
       } catch (err) {
         console.warn('Media cache worker failed:', err);
         return false;
@@ -206,6 +218,11 @@
     const ayahImg = document.getElementById('ayah-img');
     const infoBar = document.getElementById('info-bar');
     const bgVideo = document.getElementById('bg');
+    const bgVideoUrl = resolveAssetUrl(location.href, 'assets/landscape-tree-clouds.mp4');
+    if (bgVideo && new URL(bgVideo.src, location.href).pathname !== new URL(bgVideoUrl).pathname) {
+      bgVideo.src = bgVideoUrl;
+    }
+    audio.preload = 'auto';
     const btnPlayPause = document.getElementById('btn-play-pause');
     const btnToggleBg = document.getElementById('btn-toggle-bg');
     const btnAutoSurah = document.getElementById('btn-auto-surah');
@@ -355,6 +372,8 @@
     }
 
     let continuingPlayback = false;
+    let currentClipUrl = '';
+    let needsGesture = false;
     let clipToken = 0;
     let loadToken = 0;
     let imageToken = 0;
@@ -365,22 +384,62 @@
       btnPlayPause.classList.toggle('active', continuingPlayback);
     }
 
+    function applyPlaybackRate() {
+      try {
+        audio.playbackRate = currentSpeed;
+      } catch (err) {
+        // Some TV browsers reject playbackRate until the clip has metadata.
+      }
+    }
+
     function startClip(url) {
       if (!isAllowedMediaUrl(url)) {
         continuingPlayback = false;
+        needsGesture = false;
         updatePlayButton();
         infoBar.textContent = t('audioFailed');
         return;
       }
       const token = ++clipToken;
+      currentClipUrl = url;
+      needsGesture = false;
       continuingPlayback = true;
       updatePlayButton();
+      audio.volume = 1;
       audio.src = url;
-      audio.playbackRate = currentSpeed;
+      applyPlaybackRate();
       const pending = audio.play();
       if (pending && typeof pending.catch === 'function') {
         pending.catch(() => {
           if (token !== clipToken) return;
+          needsGesture = true;
+          continuingPlayback = false;
+          updatePlayButton();
+        });
+      }
+    }
+
+    function retryBlockedPlayback(event) {
+      if (!needsGesture || !currentClipUrl) return;
+      const tag = event && event.target && event.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      const token = clipToken;
+      needsGesture = false;
+      continuingPlayback = true;
+      updatePlayButton();
+      audio.volume = 1;
+      if (audio.src !== currentClipUrl) audio.src = currentClipUrl;
+      try {
+        audio.load();
+      } catch (err) {
+        // Older TV browsers can throw if load() is called twice.
+      }
+      applyPlaybackRate();
+      const pending = audio.play();
+      if (pending && typeof pending.catch === 'function') {
+        pending.catch(() => {
+          if (token !== clipToken) return;
+          needsGesture = true;
           continuingPlayback = false;
           updatePlayButton();
         });
@@ -484,7 +543,8 @@
     // --- 3. Audio Lifecycle Handlers ---
     audio.onplay = () => {
       continuingPlayback = true;
-      audio.playbackRate = currentSpeed;
+      needsGesture = false;
+      applyPlaybackRate();
       updatePlayButton();
     };
 
@@ -505,7 +565,7 @@
     // --- 4. Speed & Repeat UI Updates ---
     function updateSpeedUI() {
       speedLabel.innerText = `${currentSpeed}x`;
-      if (audio) audio.playbackRate = currentSpeed;
+      if (audio) applyPlaybackRate();
     }
 
     function updateRepeatUI() {
@@ -973,15 +1033,22 @@
     btnPlayPause.onclick = () => {
       if (continuingPlayback) {
         continuingPlayback = false;
+        needsGesture = false;
         audio.pause();
         updatePlayButton();
         return;
       }
+      if (needsGesture || !audio.src) {
+        retryBlockedPlayback();
+        return;
+      }
       continuingPlayback = true;
       updatePlayButton();
+      audio.volume = 1;
       const pending = audio.play();
       if (pending && typeof pending.catch === 'function') {
         pending.catch(() => {
+          needsGesture = true;
           continuingPlayback = false;
           updatePlayButton();
         });
@@ -1165,6 +1232,8 @@
     }
     window.onmousemove = resetIdle;
     window.onclick = resetIdle;
+    window.addEventListener('click', retryBlockedPlayback);
+    window.addEventListener('keydown', retryBlockedPlayback);
 
     // --- 11. Initial Launch ---
     (async function init() {

@@ -88,6 +88,20 @@ function isSameOriginAsset(raw, origin, suffix) {
   }
 }
 
+function resolveAssetUrl(baseHref, relative) {
+  let base;
+  try {
+    base = new URL(baseHref, 'http://kiosk.local/');
+  } catch (err) {
+    base = new URL('http://kiosk.local/');
+  }
+  const last = base.pathname.split('/').pop();
+  if (!base.pathname.endsWith('/') && last && !last.includes('.')) {
+    base.pathname += '/';
+  }
+  return new URL(String(relative ?? '').replace(/^\/+/, ''), base).href;
+}
+
 function videoResponse(buffer, range) {
   const size = buffer.byteLength;
   const headers = {
@@ -128,6 +142,7 @@ const kioskLib = {
   escapeHtml,
   isCachedMedia,
   isSameOriginAsset,
+  resolveAssetUrl,
   videoResponse
 };
 
