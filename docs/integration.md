@@ -18,7 +18,7 @@ custom_components/alquran_cloud/
   __init__.py        setup, card resource, HTTP views
   api.py             Al Quran Cloud catalog
   coordinator.py     periodic catalog refresh
-  config_flow.py     options: language, cache days, speed, video, favorites
+  config_flow.py     options: language, cache days, speed, web app, favorites
   services.py        play, stop, next, previous, cache clears
   session.py         one playback session per media player
   video.py           joined MP3 build and cache
@@ -95,7 +95,7 @@ The old video mode left MP4s under `.cache/alquran_cloud/surah/` and ayah PNGs u
 
 ## Session and entities
 
-One `PlaybackSession` per media player. The active-sessions sensor exposes the reciter, surah, and requested range. A stop button is created for each player that has been used.
+One `PlaybackSession` per media player. `sensor.al_quran_cloud_active_sessions` exposes the reciter, surah, and requested range, keyed by media-player entity id. The same attributes include `display_language`, `english` or `arabic`. The card and the TV page both follow that value. A stop button is created for each player that has been used.
 
 Audio stop calls `media_stop`. Web app stop is the table above: Home on LG and Android TV, and only a session clear on Samsung.
 

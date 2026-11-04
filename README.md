@@ -10,7 +10,7 @@ Copy `custom_components/alquran_cloud` to `config/custom_components/alquran_clou
 
 - [Integration architecture](docs/integration.md) — audio join, TV handoff, cache, and why Chromecast is not a video target
 - [Quran player](docs/kiosk.md) — the page Home Assistant serves to the TV, including webOS 4
-- [Dashboard card](docs/card.md) — the Lovelace card, player list, and video-mode controls
+- [Dashboard card](docs/card.md) — the Lovelace card, player list, and web app controls
 
 ## Install
 
@@ -31,6 +31,8 @@ webapp: false
 background_video: false
 ```
 
+![Al Quran Cloud card](docs/alquran-cloud-card.png)
+
 The card is also added to Settings → Dashboards → Resources when Lovelace uses storage mode. The resource URL includes the version from `manifest.json`, so a version bump refreshes the card.
 
 `ffmpeg` and `ffprobe` are required for joined audio at any speed other than 1, and for probing duration. Joined audio also needs an HTTPS Home Assistant URL. The TV page can use the internal `http://` URL.
@@ -41,9 +43,11 @@ The public Al Quran Cloud API lists the free Arabic verse-by-verse recitations. 
 
 The media browser still opens one public ayah MP3, for example `https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3`. The play action does not. It builds one cached MP3 for the range, under `.cache/alquran_cloud/audio/`. **Joined audio cache (days)** decides how long that file is kept. The default is 7 days. Playing it again refreshes that age. The first build of a long surah can take several minutes. A notification stays up while ffmpeg works.
 
-Speeds other than 1 are written into the cached audio file. Repeat plays that file the requested number of times. Continue to the next surah is available only for a full surah. Loop starts the original surah or range again, and it is off unless you turn it on. While a speaker is playing, the card shows the requested range, such as `001:005`, or the surah line with its ayah count when the range runs through the last ayah.
+Speeds other than 1 are written into the cached audio file. Repeat plays that file the requested number of times. Continue to the next surah is available only for a full surah. Loop starts the original surah or range again, and it is off unless you turn it on. While a speaker is playing, the card shows the requested range, such as `001:005`, or the surah line with its ayah count when the range runs through the last ayah. Names and labels follow the integration display language, Arabic or English. The volume row sits under the media player and shows the level, such as `42%`, just before the increase button.
 
 ## Web app on a TV
+
+![Quran player](docs/quran-player.png)
 
 Turn on **Web app**. Home Assistant opens `/api/alquran_cloud/kiosk/` in the TV browser with the reciter, surah, ayah range, speed, repeat, continue, loop, and background video in the address. The TV then owns playback. The card shows **On the TV** and does not follow the ayah. The TV going idle does not end the session. `background_video` defaults to off. Turn it on to play the landscape clip behind the page. It does nothing for joined audio. The card shows that switch only while **Web app** is on.
 
@@ -93,7 +97,7 @@ data:
   background_video: false
 ```
 
-Stop, next, and previous use the player from the current session. Next and previous open the neighboring full surah with the same repeat, speed, and video setting.
+Stop, next, and previous use the player from the current session. Next and previous open the neighboring full surah with the same repeat, speed, web app, and background setting.
 
 ```yaml
 action: alquran_cloud.stop
@@ -133,11 +137,11 @@ action: alquran_cloud.clear_source_cache
 
 `clear_cache` deletes joined audio, leftover videos and pictures, downloads, and work files. `clear_audio_cache` deletes joined MP3s only. `clear_video_cache` deletes leftover surah videos and downloaded ayah pictures. `clear_source_cache` deletes downloaded ayah MP3s and unfinished work files.
 
-Starting the integration also deletes leftover surah videos and ayah pictures. `sensor.alquran_cloud_active_sessions` lists the reciter, surah, and requested range. A stop button appears for each player that has been used.
+Starting the integration also deletes leftover surah videos and ayah pictures. `sensor.al_quran_cloud_active_sessions` lists the reciter, surah, and requested range, and its `display_language` attribute is `english` or `arabic`. A stop button appears for each player that has been used.
 
 ## Manual check
 
-- [ ] Speaker, surah video off, speed 1: one cached MP3 of the surah or range plays, then stops.
+- [ ] Speaker, web app off, speed 1: one cached MP3 of the surah or range plays, then stops.
 - [ ] Speed 0.5 and 1.75 on a speaker that can open the Home Assistant HTTPS URL.
 - [ ] Web app on the card lists only LG, Samsung, and Android TV players, sorted by name. Loop stays visible. Background video appears only in that mode and starts off.
 - [ ] `background_video: true` opens the web app with the landscape clip playing. The default leaves it hidden.

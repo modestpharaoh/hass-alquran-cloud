@@ -1,5 +1,7 @@
 # Quran player
 
+![Quran player](quran-player.png)
+
 The TV page is the [alquran-cloud-local-UI](https://github.com/modestpharaoh/alquran-cloud-local-UI) player, copied into this integration. The original repository is not modified from here. Home Assistant serves the copy and opens it on the TV. After that, the TV owns playback.
 
 Files live in `custom_components/alquran_cloud/www/kiosk/`. `QuranKioskView` in `kiosk.py` serves them with `requires_auth = False` at:
@@ -89,6 +91,8 @@ npx esbuild custom_components/alquran_cloud/www/kiosk/js/app.js \
 `system.launcher/open` is not a user gesture, so the first `audio.play()` is often rejected. The page remembers that and retries on the next click or remote key, calling `load()` and `play()` in that handler. `playbackRate` is applied inside a try, because some TV browsers throw if it is set before metadata loads.
 
 CSS that Chromium 53 ignores is given a fallback under `@supports not (gap: 1px)`: button margins, and surah cards as inline blocks instead of a grid.
+
+webOS 4 has no emoji font. Toolbar, transport, and favorite marks are inline SVG, so the reciter microphone and the other controls still draw. In Arabic the skip icons are mirrored: previous points right and next points left. Play and pause swap by setting the SVG `hidden` attribute. Assigning the `hidden` property on an SVG does not change that attribute in this browser.
 
 ## Decisions
 
