@@ -48,6 +48,11 @@ class QuranKioskHttpView(HomeAssistantView):
     name = QuranKioskView.name
     requires_auth = False
 
+    def register(self, hass, app, router) -> None:
+        """Remember hass. The base view does not keep it on the instance."""
+        self.hass = hass
+        super().register(hass, app, router)
+
     async def get(self, request, path: str = ""):
         """Return one kiosk file."""
         return await QuranKioskView.get(self, request, path)

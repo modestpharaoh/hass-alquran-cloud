@@ -13,6 +13,15 @@ Files live in `custom_components/alquran_cloud/www/kiosk/`. `QuranKioskView` in 
 
 No Home Assistant login. A TV browser launched by `system.launcher/open` or ADB does not have an HA session cookie. Paths that escape the kiosk directory (`..`) are rejected. HTML, JS, and CSS responses send `Cache-Control: no-cache` so a TV picks up a new script without a manual cache clear. The background video is large and is not marked that way.
 
+The page is still unauthenticated. `QuranKioskView.get` allows the request only when `request.remote` is loopback (`127.0.0.1` or `::1`), an address on an enabled Home Assistant network adapter, or covered by an option below. Everyone else gets 403. The check uses `request.remote` only. Home Assistant already rewrites that value when a trusted proxy is configured.
+
+With both options left at their defaults, a public address, Nabu Casa, and any other LAN are refused. A Docker bridge install whose only adapter is `172.17.0.0/16` refuses a `192.168` TV until one of the options is turned on.
+
+- **Also allow private addresses** (`kiosk_allow_private`, default off). When on, any private address is enough, including RFC1918 and IPv6 unique-local addresses. Public addresses stay refused.
+- **Extra trusted subnets** (`kiosk_trusted_networks`, default empty). Comma, space, or newline separated CIDRs such as `192.168.50.0/24` or `10.8.0.0/24`. A single address is a host route. Invalid text is an options error and is not saved. `0.0.0.0/0` and `::/0` are rejected. Any other valid subnet is trusted, including a public one, because that is an explicit choice.
+
+If the network component has no addresses, only loopback and these options apply. The speaker URL `/api/alquran_cloud/media/{token}/…` is unchanged.
+
 The page address always has a trailing slash before the query string:
 
 ```

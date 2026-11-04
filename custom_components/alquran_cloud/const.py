@@ -17,6 +17,8 @@ CONF_PLAYBACK_SPEED = "playback_speed"
 CONF_WEBAPP = "webapp"
 CONF_BACKGROUND_VIDEO = "background_video"
 CONF_FAVORITE_RECITERS = "favorite_reciters"
+CONF_KIOSK_ALLOW_PRIVATE = "kiosk_allow_private"
+CONF_KIOSK_TRUSTED_NETWORKS = "kiosk_trusted_networks"
 
 LANG_ENGLISH = "english"
 LANG_ARABIC = "arabic"

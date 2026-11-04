@@ -18,7 +18,7 @@ custom_components/alquran_cloud/
   __init__.py        setup, card resource, HTTP views
   api.py             Al Quran Cloud catalog
   coordinator.py     periodic catalog refresh
-  config_flow.py     options: language, cache days, speed, web app, favorites
+  config_flow.py     options: language, cache days, speed, web app, favorites, kiosk access
   services.py        play, stop, next, previous, cache clears
   session.py         one playback session per media player
   video.py           joined MP3 build and cache
@@ -61,6 +61,8 @@ The media browser is a separate path. It still resolves one public CDN MP3 per a
 `background_video` is sent as `background_video=true` or `background_video=false`. The default is false, so the landscape clip stays hidden until it is turned on. Joined audio ignores it.
 
 The URL is `{internal-or-external}/api/alquran_cloud/kiosk/?…`. The internal URL is preferred (`prefer_external=False`, `allow_internal=True`) so a TV on the LAN can open it. The external URL is the fallback. `http://` is allowed for the page. The query is described in [Quran player](kiosk.md). The path has a trailing slash before `?` so the page can resolve `assets/` and `js/` underneath `/kiosk/`.
+
+The page stays unauthenticated, and the view returns 403 unless the client is loopback or on an enabled Home Assistant adapter subnet. **Also allow private addresses** extends that to other private LANs. **Extra trusted subnets** adds an explicit CIDR list. A Docker bridge install whose only adapter is `172.17.0.0/16` needs one of those before a `192.168` TV can open the page. `network` is an `after_dependency` so the adapter list exists before the view is used.
 
 Next and previous do not step an ayah on the TV. They open the neighboring full surah in the browser again.
 

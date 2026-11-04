@@ -21,12 +21,16 @@ from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
 )
 
 from .const import (
     CONF_CACHE_DAYS,
     CONF_DISPLAY_LANGUAGE,
     CONF_FAVORITE_RECITERS,
+    CONF_KIOSK_ALLOW_PRIVATE,
+    CONF_KIOSK_TRUSTED_NETWORKS,
     CONF_PLAYBACK_SPEED,
     CONF_WEBAPP,
     DEFAULT_CACHE_DAYS,
@@ -44,6 +48,7 @@ from .const import (
     get_favorite_reciter_ids,
     webapp_enabled,
 )
+from .kiosk import InvalidTrustedNetwork, parse_trusted_networks
 
 
 def _reciter_select_options(hass: HomeAssistant | None, language: str) -> list[dict[str, str]]:
@@ -102,6 +107,14 @@ def _options_schema(defaults: dict[str, Any], reciter_options: list[dict[str, st
         vol.Required(
             CONF_WEBAPP, default=webapp_enabled(defaults)
         ): BooleanSelector(),
+        vol.Required(
+            CONF_KIOSK_ALLOW_PRIVATE,
+            default=bool(defaults.get(CONF_KIOSK_ALLOW_PRIVATE, False)),
+        ): BooleanSelector(),
+        vol.Optional(
+            CONF_KIOSK_TRUSTED_NETWORKS,
+            default=str(defaults.get(CONF_KIOSK_TRUSTED_NETWORKS) or ""),
+        ): TextSelector(TextSelectorConfig(multiline=True)),
     }
     if reciter_options:
         current = [str(item) for item in get_favorite_reciter_ids(defaults)]
@@ -134,6 +147,17 @@ def _stored_options(user_input: dict[str, Any], previous: dict[str, Any]) -> dic
         ),
         CONF_WEBAPP: bool(user_input.get(CONF_WEBAPP, webapp_enabled(previous))),
         CONF_FAVORITE_RECITERS: favorites,
+        CONF_KIOSK_ALLOW_PRIVATE: bool(
+            user_input.get(CONF_KIOSK_ALLOW_PRIVATE, previous.get(CONF_KIOSK_ALLOW_PRIVATE, False))
+        ),
+        CONF_KIOSK_TRUSTED_NETWORKS: "\n".join(
+            parse_trusted_networks(
+                user_input.get(
+                    CONF_KIOSK_TRUSTED_NETWORKS,
+                    previous.get(CONF_KIOSK_TRUSTED_NETWORKS, ""),
+                )
+            )
+        ),
     }
 
 
@@ -150,10 +174,18 @@ class AlquranCloudConfigFlow(ConfigFlow, domain=DOMAIN):
         language = get_display_language(user_input or {})
         reciter_options = _reciter_select_options(getattr(self, "hass", None), language)
         if user_input is not None:
+            try:
+                stored = _stored_options(user_input, {})
+            except InvalidTrustedNetwork:
+                return self.async_show_form(
+                    step_id="user",
+                    data_schema=_options_schema(user_input, reciter_options),
+                    errors={CONF_KIOSK_TRUSTED_NETWORKS: "invalid_subnet"},
+                )
             return self.async_create_entry(
                 title="Al Quran Cloud",
                 data={},
-                options=_stored_options(user_input, {}),
+                options=stored,
             )
         return self.async_show_form(
             step_id="user",
@@ -183,7 +215,19 @@ class AlquranCloudOptionsFlowHandler(OptionsFlow):
         """Manage options."""
         current = dict(self.config_entry.options)
         if user_input is not None:
-            return self.async_create_entry(title="", data=_stored_options(user_input, current))
+            try:
+                stored = _stored_options(user_input, current)
+            except InvalidTrustedNetwork:
+                merged = {**current, **user_input}
+                return self.async_show_form(
+                    step_id="init",
+                    data_schema=_options_schema(
+                        merged,
+                        _reciter_select_options(getattr(self, "hass", None), get_display_language(merged)),
+                    ),
+                    errors={CONF_KIOSK_TRUSTED_NETWORKS: "invalid_subnet"},
+                )
+            return self.async_create_entry(title="", data=stored)
         return self.async_show_form(
             step_id="init",
             data_schema=_options_schema(

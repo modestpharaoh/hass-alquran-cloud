@@ -130,8 +130,8 @@ def _ensure_ha_stubs() -> None:
         def async_create_entry(self, title, data):
             return {"type": "create_entry", "title": title, "data": data}
 
-        def async_show_form(self, step_id, data_schema=None):
-            return {"type": "form", "step_id": step_id, "data_schema": data_schema}
+        def async_show_form(self, step_id, data_schema=None, errors=None):
+            return {"type": "form", "step_id": step_id, "data_schema": data_schema, "errors": errors}
 
     class ConfigFlowResult(dict):
         pass
@@ -238,6 +238,8 @@ def _ensure_ha_stubs() -> None:
     ha_selector.SelectSelectorConfig = _Selector
     ha_selector.SelectSelectorMode = SelectSelectorMode
     ha_selector.BooleanSelector = _Selector
+    ha_selector.TextSelector = _Selector
+    ha_selector.TextSelectorConfig = _Selector
     sys.modules["homeassistant.helpers.selector"] = ha_selector
 
     ha_mp = types.ModuleType("homeassistant.components.media_player")

@@ -1,7 +1,7 @@
 {
   "domain": "alquran_cloud",
   "name": "Al Quran Cloud",
-  "after_dependencies": ["lovelace"],
+  "after_dependencies": ["lovelace", "network"],
   "codeowners": ["@modestpharaoh"],
   "config_flow": true,
   "dependencies": ["http", "media_source"],
@@ -11,5 +11,5 @@
   "issue_tracker": "https://github.com/modestpharaoh/hass-quran-com/issues",
   "loggers": ["custom_components.alquran_cloud"],
   "requirements": [],
-  "version": "0.1.13"
+  "version": "0.1.15"
 }
