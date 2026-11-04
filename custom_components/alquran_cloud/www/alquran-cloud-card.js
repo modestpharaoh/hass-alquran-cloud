@@ -324,6 +324,10 @@ const STYLE = `
   }
   .volume { display: flex; align-items: center; gap: 8px; }
   .volume input[type="range"] { flex: 1; accent-color: #026634; }
+  .volume .value {
+    min-width: 3em; text-align: end; font-variant-numeric: tabular-nums;
+    font-size: 0.9rem; color: var(--primary-text-color);
+  }
   .switch { flex-direction: row; align-items: center; justify-content: space-between; font-size: 14px; color: var(--primary-text-color); }
   .actions { display: flex; gap: 8px; }
   button.action {
@@ -506,18 +510,26 @@ class AlquranCloudCard extends HTMLElement {
     this._volumeSlider.min = "0";
     this._volumeSlider.max = "100";
     this._volumeSlider.value = "50";
+    this._volumeValue = document.createElement("span");
+    this._volumeValue.className = "value";
     this._volumeUp = iconButton("icon", "mdi:volume-plus");
     this._volumeDown.addEventListener("click", () => this._volumeStep(-0.05));
     this._volumeUp.addEventListener("click", () => this._volumeStep(0.05));
+    this._volumeSlider.addEventListener("input", () => {
+      const value = Math.round(Number(this._volumeSlider.value));
+      this._volumeValue.textContent = `${value}%`;
+    });
     this._volumeSlider.addEventListener("change", () => {
       const level = Number(this._volumeSlider.value) / 100;
       this._volumeTarget = level;
+      this._showVolumePercent(level * 100);
       this._hass.callService("media_player", "volume_set", {
         entity_id: this._player.value,
         volume_level: level,
       });
     });
-    volume.append(this._volumeDown, this._volumeSlider, this._volumeUp);
+    this._showVolumePercent(50);
+    volume.append(this._volumeDown, this._volumeSlider, this._volumeValue, this._volumeUp);
     this._volume = volume;
     const actions = document.createElement("div");
     actions.className = "actions";
@@ -533,6 +545,7 @@ class AlquranCloudCard extends HTMLElement {
     body.append(
       this._status,
       this._player.parentElement,
+      volume,
       this._reciter.parentElement,
       this._surah.parentElement,
       this._start.parentElement,
@@ -544,7 +557,6 @@ class AlquranCloudCard extends HTMLElement {
       this._webapp.parentElement,
       this._background.parentElement,
       this._help,
-      volume,
       actions,
     );
     card.append(header, stage, body);
@@ -810,7 +822,13 @@ class AlquranCloudCard extends HTMLElement {
       if (Math.abs(attrs.volume_level - this._volumeTarget) > 0.02) return;
       this._volumeTarget = null;
     }
-    this._volumeSlider.value = String(Math.round(Math.min(1, Math.max(0, attrs.volume_level)) * 100));
+    this._showVolumePercent(Math.min(1, Math.max(0, attrs.volume_level)) * 100);
+  }
+
+  _showVolumePercent(percent) {
+    const value = Math.round(Math.min(100, Math.max(0, percent)));
+    this._volumeSlider.value = String(value);
+    if (this._volumeValue) this._volumeValue.textContent = `${value}%`;
   }
 
   _volumeStep(delta) {
@@ -826,7 +844,7 @@ class AlquranCloudCard extends HTMLElement {
         : Number(this._volumeSlider.value) / 100;
       const next = Math.min(1, Math.max(0, current + delta));
       this._volumeTarget = next;
-      this._volumeSlider.value = String(Math.round(next * 100));
+      this._showVolumePercent(next * 100);
       this._hass.callService("media_player", "volume_set", {
         entity_id: entity,
         volume_level: next,
