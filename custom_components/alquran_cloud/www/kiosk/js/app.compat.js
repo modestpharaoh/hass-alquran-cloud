@@ -302,8 +302,10 @@ const STRINGS = {
     copyId: "Copy {id}",
     favorite: "Favorite",
     bismillah: "Bismillah",
-    ayahLine: "{name} \u2014 ayah {ayah} ({extra})",
-    fullSurahLine: "{name} \u2014 ayah {ayah} \xB7 full surah",
+    meccan: "Meccan",
+    medinan: "Medinan",
+    ayahLine: "{head} \u2014 ayah {ayah}",
+    fullSurahLine: "{head} \u2014 ayah {ayah} \xB7 full surah",
     surahsDone: "requested surahs finished",
     done: "recitation complete",
     bgOn: "Background: on",
@@ -369,8 +371,10 @@ const STRINGS = {
     copyId: "\u0646\u0633\u062E {id}",
     favorite: "\u0645\u0641\u0636\u0644\u0629",
     bismillah: "\u0628\u0650\u0633\u0652\u0645\u0650 \u0627\u0644\u0644\u0651\u064E\u0647\u0650 \u0627\u0644\u0631\u0651\u064E\u062D\u0652\u0645\u064E\u0670\u0646\u0650 \u0627\u0644\u0631\u0651\u064E\u062D\u0650\u064A\u0645\u0650",
-    ayahLine: "{name} - \u0622\u064A\u0629 {ayah} ({extra})",
-    fullSurahLine: "{name} - \u0622\u064A\u0629 {ayah} \xB7 \u062A\u0644\u0627\u0648\u0629 \u0627\u0644\u0633\u0648\u0631\u0629 \u0643\u0627\u0645\u0644\u0629",
+    meccan: "\u0645\u0643\u064A\u0629",
+    medinan: "\u0645\u062F\u0646\u064A\u0629",
+    ayahLine: "{head} - \u0622\u064A\u0629 {ayah}",
+    fullSurahLine: "{head} - \u0622\u064A\u0629 {ayah} \xB7 \u062A\u0644\u0627\u0648\u0629 \u0627\u0644\u0633\u0648\u0631\u0629 \u0643\u0627\u0645\u0644\u0629",
     surahsDone: "\u0627\u0646\u062A\u0647\u062A \u0627\u0644\u0633\u0648\u0631 \u0627\u0644\u0645\u0637\u0644\u0648\u0628\u0629",
     done: "\u0627\u0643\u062A\u0645\u0644 \u0627\u0644\u062A\u0644\u0627\u0648\u0629",
     bgOn: "\u062E\u0644\u0641\u064A\u0629: \u062A\u0634\u063A\u064A\u0644",
@@ -569,6 +573,39 @@ function surahDisplayName() {
   if (!surahData) return "";
   return language === "ar" ? surahData.name : surahData.englishName;
 }
+function surahNumberLabel() {
+  const number = Number(surahData && surahData.number);
+  if (!number) return "";
+  const text = String(number);
+  return text.length >= 3 ? text : ("000" + text).slice(-3);
+}
+function surahPlace() {
+  const kind = String(surahData && surahData.revelationType || "").toLowerCase();
+  if (kind === "meccan") return t("meccan");
+  if (kind === "medinan") return t("medinan");
+  return "";
+}
+function surahHeading() {
+  const parts = [];
+  const number = surahNumberLabel();
+  const name = surahDisplayName();
+  const place = surahPlace();
+  if (number) parts.push(number);
+  if (name) parts.push(name);
+  if (place) parts.push(place);
+  return parts.join(" \xB7 ");
+}
+function surahCountPhrase() {
+  const count = Number(surahData && surahData.numberOfAyahs);
+  if (!count) return "";
+  return "".concat(count, " ").concat(t("ayahs"));
+}
+function ayahCountWord(count) {
+  const last = Math.abs(Number(count) || 0) % 100;
+  if (last === 2) return "\u0622\u064A\u062A\u0627\u0646";
+  if (last >= 3 && last <= 10) return "\u0622\u064A\u0627\u062A";
+  return "\u0622\u064A\u0629";
+}
 function ayahCountNode(count) {
   const wrap = document.createElement("span");
   wrap.className = "ayah-count";
@@ -576,13 +613,13 @@ function ayahCountNode(count) {
   const number = document.createElement("span");
   number.dir = "ltr";
   number.textContent = String(count);
-  wrap.append(number, " \u0622\u064A\u0627\u062A");
+  wrap.append(number, " ".concat(ayahCountWord(count)));
   return wrap;
 }
 function refreshPlaybackInfo() {
   if (!surahData) return;
   if (language === "ar") {
-    const parts = [surahDisplayName(), " ", ayahCountNode(surahData.numberOfAyahs)];
+    const parts = [surahHeading(), " \xB7 ", ayahCountNode(surahData.numberOfAyahs)];
     if (isBismillah) {
       parts.push(" \u2014 ".concat(t("bismillah")));
     } else if (surahData.ayahs && surahData.ayahs[currentAyahIndex]) {
@@ -597,11 +634,13 @@ function refreshPlaybackInfo() {
     return;
   }
   let text;
+  const count = surahCountPhrase();
+  const head = count ? "".concat(surahHeading(), " \xB7 ").concat(count) : surahHeading();
   if (isBismillah) {
-    text = "".concat(surahDisplayName(), " \u2014 ").concat(t("bismillah"));
+    text = "".concat(head, " \u2014 ").concat(t("bismillah"));
   } else if (surahData.ayahs && surahData.ayahs[currentAyahIndex]) {
     const ayah = surahData.ayahs[currentAyahIndex];
-    const vars = { name: surahDisplayName(), ayah: ayah.numberInSurah, extra: surahData.name };
+    const vars = { head, ayah: ayah.numberInSurah };
     text = surahAudioMode ? t("fullSurahLine", vars) : t("ayahLine", vars);
   } else {
     return;

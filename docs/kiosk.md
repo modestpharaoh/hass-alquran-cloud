@@ -107,6 +107,10 @@ CSS that Chromium 53 ignores is given a fallback under `@supports not (gap: 1px)
 
 webOS 4 has no emoji font. Toolbar, transport, and favorite marks are inline SVG, so the reciter microphone and the other controls still draw. In Arabic the skip icons are mirrored: previous points right and next points left. Play and pause swap by setting the SVG `hidden` attribute. Assigning the `hidden` property on an SVG does not change that attribute in this browser.
 
+The page uses Noto Sans Arabic for Latin and Arabic. The TV’s own font draws lam-alef and hamza alef as separate letters, so words such as السور and الإعدادات fall apart. Letter spacing on Arabic is left at 0 for the same reason.
+
+The surah line includes the surah number, the ayah count, and whether it is Meccan or Medinan (`revelationType` from Al Quran Cloud). Arabic uses مكية and مدنية, with a middle dot before the count. The count word follows the last two digits: 3–10 uses آيات (الفاتحة: 7 آيات), 2 uses آيتان, and every other ending uses آية (البقرة: 286 آية, الأعراف: 206 آيات). English uses the count as `7 ayahs`. The title and the control buttons step up at 1600px, 2200px, and 3200px wide, so a 4K panel is larger than a 1080p one.
+
 ## Decisions
 
 - Serve the existing player from Home Assistant. Do not generate an MP4.

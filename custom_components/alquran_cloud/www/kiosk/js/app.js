@@ -300,8 +300,10 @@
         copyId: 'Copy {id}',
         favorite: 'Favorite',
         bismillah: 'Bismillah',
-        ayahLine: '{name} — ayah {ayah} ({extra})',
-        fullSurahLine: '{name} — ayah {ayah} · full surah',
+        meccan: 'Meccan',
+        medinan: 'Medinan',
+        ayahLine: '{head} — ayah {ayah}',
+        fullSurahLine: '{head} — ayah {ayah} · full surah',
         surahsDone: 'requested surahs finished',
         done: 'recitation complete',
         bgOn: 'Background: on',
@@ -367,8 +369,10 @@
         copyId: 'نسخ {id}',
         favorite: 'مفضلة',
         bismillah: 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',
-        ayahLine: '{name} - آية {ayah} ({extra})',
-        fullSurahLine: '{name} - آية {ayah} · تلاوة السورة كاملة',
+        meccan: 'مكية',
+        medinan: 'مدنية',
+        ayahLine: '{head} - آية {ayah}',
+        fullSurahLine: '{head} - آية {ayah} · تلاوة السورة كاملة',
         surahsDone: 'انتهت السور المطلوبة',
         done: 'اكتمل التلاوة',
         bgOn: 'خلفية: تشغيل',
@@ -576,6 +580,44 @@
       return language === 'ar' ? surahData.name : surahData.englishName;
     }
 
+    function surahNumberLabel() {
+      const number = Number(surahData && surahData.number);
+      if (!number) return '';
+      const text = String(number);
+      return text.length >= 3 ? text : ('000' + text).slice(-3);
+    }
+
+    function surahPlace() {
+      const kind = String((surahData && surahData.revelationType) || '').toLowerCase();
+      if (kind === 'meccan') return t('meccan');
+      if (kind === 'medinan') return t('medinan');
+      return '';
+    }
+
+    function surahHeading() {
+      const parts = [];
+      const number = surahNumberLabel();
+      const name = surahDisplayName();
+      const place = surahPlace();
+      if (number) parts.push(number);
+      if (name) parts.push(name);
+      if (place) parts.push(place);
+      return parts.join(' · ');
+    }
+
+    function surahCountPhrase() {
+      const count = Number(surahData && surahData.numberOfAyahs);
+      if (!count) return '';
+      return `${count} ${t('ayahs')}`;
+    }
+
+    function ayahCountWord(count) {
+      const last = Math.abs(Number(count) || 0) % 100;
+      if (last === 2) return 'آيتان';
+      if (last >= 3 && last <= 10) return 'آيات';
+      return 'آية';
+    }
+
     function ayahCountNode(count) {
       const wrap = document.createElement('span');
       wrap.className = 'ayah-count';
@@ -583,14 +625,14 @@
       const number = document.createElement('span');
       number.dir = 'ltr';
       number.textContent = String(count);
-      wrap.append(number, ' آيات');
+      wrap.append(number, ` ${ayahCountWord(count)}`);
       return wrap;
     }
 
     function refreshPlaybackInfo() {
       if (!surahData) return;
       if (language === 'ar') {
-        const parts = [surahDisplayName(), ' ', ayahCountNode(surahData.numberOfAyahs)];
+        const parts = [surahHeading(), ' · ', ayahCountNode(surahData.numberOfAyahs)];
         if (isBismillah) {
           parts.push(` — ${t('bismillah')}`);
         } else if (surahData.ayahs && surahData.ayahs[currentAyahIndex]) {
@@ -606,11 +648,13 @@
       }
 
       let text;
+      const count = surahCountPhrase();
+      const head = count ? `${surahHeading()} · ${count}` : surahHeading();
       if (isBismillah) {
-        text = `${surahDisplayName()} — ${t('bismillah')}`;
+        text = `${head} — ${t('bismillah')}`;
       } else if (surahData.ayahs && surahData.ayahs[currentAyahIndex]) {
         const ayah = surahData.ayahs[currentAyahIndex];
-        const vars = { name: surahDisplayName(), ayah: ayah.numberInSurah, extra: surahData.name };
+        const vars = { head: head, ayah: ayah.numberInSurah };
         text = surahAudioMode ? t('fullSurahLine', vars) : t('ayahLine', vars);
       } else {
         return;
