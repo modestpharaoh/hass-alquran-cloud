@@ -71,6 +71,13 @@ check("seven ayahs", lib.ayahCountWord(7) === "آيات");
 check("two ayahs", lib.ayahCountWord(2) === "آيتان");
 check("two hundred six ayahs", lib.ayahCountWord(206) === "آيات");
 check("two hundred eighty six ayahs", lib.ayahCountWord(286) === "آية");
+check("lookahead path", lib.lookaheadAudioPath("https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3") === "audio/128/ar.alafasy/1.mp3");
+check("lookahead keeps the global number", lib.lookaheadAudioPath("https://cdn.islamic.network/quran/audio/64/ar.husary/6236.mp3") === "audio/64/ar.husary/6236.mp3");
+check("lookahead rejects another host", lib.lookaheadAudioPath("https://example.com/quran/audio/128/ar.alafasy/1.mp3") === "");
+check("lookahead rejects a bad bitrate", lib.lookaheadAudioPath("https://cdn.islamic.network/quran/audio/96/ar.alafasy/1.mp3") === "");
+check("a blob clip can play", lib.isPlayableClipUrl("blob:http://ha.local/8f4e") === true);
+check("the cdn clip can play", lib.isPlayableClipUrl("https://cdn.islamic.network/quran/audio/128/ar.alafasy/2.mp3") === true);
+check("another host cannot play", lib.isPlayableClipUrl("https://example.com/a.mp3") === false);
 """
 
 _JS = Path(__file__).resolve().parents[1] / "custom_components" / "alquran_cloud" / "www" / "kiosk" / "js"

@@ -278,6 +278,9 @@
       fill: currentColor; margin: 0 4px;
     }
     svg.ico[hidden] { display: none !important; }
+    #controls #btn-play-pause .ico-pause { display: none !important; }
+    #controls #btn-play-pause.active .ico-play { display: none !important; }
+    #controls #btn-play-pause.active .ico-pause { display: block !important; }
     #controls button { direction: ltr; }
     html[dir="rtl"] #btn-prev-surah,
     html[dir="rtl"] #btn-prev-ayah,

@@ -433,6 +433,7 @@ function t(key, vars) {
   });
 }
 let continuingPlayback = false;
+let ignorePause = false;
 let currentClipUrl = "";
 let needsGesture = false;
 let clipToken = 0;
@@ -464,8 +465,76 @@ function applyPlaybackRate() {
   } catch (err) {
   }
 }
+let lookahead = null;
+let heldClipUrl = "";
+function releaseHeldClip(nextUrl) {
+  if (heldClipUrl && heldClipUrl !== nextUrl) {
+    try {
+      URL.revokeObjectURL(heldClipUrl);
+    } catch (err) {
+    }
+  }
+  heldClipUrl = String(nextUrl || "").indexOf("blob:") === 0 ? nextUrl : "";
+}
+function clearLookahead() {
+  if (!lookahead) return;
+  if (lookahead.xhr) {
+    try {
+      lookahead.xhr.abort();
+    } catch (err) {
+    }
+  }
+  if (lookahead.objectUrl) {
+    try {
+      URL.revokeObjectURL(lookahead.objectUrl);
+    } catch (err) {
+    }
+  }
+  lookahead = null;
+}
+function takeLookahead(cdnUrl) {
+  if (!lookahead || lookahead.cdn !== cdnUrl || !lookahead.objectUrl) return "";
+  const objectUrl = lookahead.objectUrl;
+  if (lookahead.xhr) {
+    try {
+      lookahead.xhr.abort();
+    } catch (err) {
+    }
+  }
+  lookahead = null;
+  return objectUrl;
+}
+function primeLookahead(cdnUrl) {
+  clearLookahead();
+  const relative = lookaheadAudioPath(cdnUrl);
+  if (!relative) return;
+  const slot = { cdn: cdnUrl, objectUrl: "", xhr: new XMLHttpRequest() };
+  lookahead = slot;
+  slot.xhr.open("GET", resolveAssetUrl(location.href, relative), true);
+  slot.xhr.responseType = "blob";
+  slot.xhr.onload = () => {
+    if (lookahead !== slot || slot.xhr.status !== 200 || !slot.xhr.response) return;
+    slot.objectUrl = URL.createObjectURL(slot.xhr.response);
+    slot.xhr = null;
+  };
+  slot.xhr.onerror = () => {
+    if (lookahead === slot) slot.xhr = null;
+  };
+  try {
+    slot.xhr.send();
+  } catch (err) {
+    slot.xhr = null;
+  }
+}
+function nextAyahAudio(index) {
+  if (!surahData || surahAudioMode || !surahData.ayahs) return "";
+  const next = surahData.ayahs[index + 1];
+  if (!next || !next.audio) return "";
+  if (endAyah && Number(next.numberInSurah) > endAyah) return "";
+  return next.audio;
+}
 function startClip(url) {
-  if (!isAllowedMediaUrl(url)) {
+  if (!isPlayableClipUrl(url)) {
     continuingPlayback = false;
     needsGesture = false;
     updatePlayButton();
@@ -473,9 +542,11 @@ function startClip(url) {
     return;
   }
   const token = ++clipToken;
+  releaseHeldClip(url);
   currentClipUrl = url;
   needsGesture = false;
   continuingPlayback = true;
+  ignorePause = true;
   updatePlayButton();
   audio.volume = 1;
   audio.src = url;
@@ -484,6 +555,7 @@ function startClip(url) {
   if (pending && typeof pending.catch === "function") {
     pending.catch(() => {
       if (token !== clipToken) return;
+      ignorePause = false;
       needsGesture = true;
       continuingPlayback = false;
       updatePlayButton();
@@ -497,6 +569,7 @@ function retryBlockedPlayback(event) {
   const token = clipToken;
   needsGesture = false;
   continuingPlayback = true;
+  ignorePause = true;
   updatePlayButton();
   audio.volume = 1;
   if (audio.src !== currentClipUrl) audio.src = currentClipUrl;
@@ -509,6 +582,7 @@ function retryBlockedPlayback(event) {
   if (pending && typeof pending.catch === "function") {
     pending.catch(() => {
       if (token !== clipToken) return;
+      ignorePause = false;
       needsGesture = true;
       continuingPlayback = false;
       updatePlayButton();
@@ -710,13 +784,16 @@ function applyLanguage() {
   }
 }
 audio.onplay = () => {
+  ignorePause = false;
   continuingPlayback = true;
   needsGesture = false;
   applyPlaybackRate();
   updatePlayButton();
 };
 audio.onpause = () => {
-  if (continuingPlayback) return;
+  if (ignorePause) return;
+  continuingPlayback = false;
+  needsGesture = false;
   updatePlayButton();
   if (bgVideoEnabled) playBackgroundVideo();
 };
@@ -964,11 +1041,14 @@ function playBismillah() {
     }
     if (token !== loadToken) return;
     startClip(bismillahAudioCache[edition] || "https://cdn.islamic.network/quran/audio/128/".concat(edition, "/1.mp3"));
+    const opening = surahData && surahData.ayahs && surahData.ayahs.find((ayah) => ayah.numberInSurah === startAyah);
+    if (opening && opening.audio) primeLookahead(opening.audio);
   });
 }
 function loadSurah(surahNum, targetAyah = 1) {
   return __async(this, null, function* () {
     persistSettings();
+    clearLookahead();
     const token = ++loadToken;
     const edition = safeEditionId(reciter, "ar.alafasy");
     playbackNote = "";
@@ -1005,6 +1085,19 @@ function loadSurah(surahNum, targetAyah = 1) {
     }
   });
 }
+function ayahPictureUrl(surahNumber, ayahNumber) {
+  return "https://cdn.islamic.network/quran/images/high-resolution/".concat(surahNumber, "_").concat(ayahNumber, ".png");
+}
+function prefetchAyahImage(index) {
+  if (!surahData || !surahData.ayahs || !surahData.ayahs[index]) return;
+  const ayah = surahData.ayahs[index];
+  if (endAyah && Number(ayah.numberInSurah) > endAyah) return;
+  const surahNumber = Number(surahData.number);
+  const ayahNumber = Number(ayah.numberInSurah);
+  if (!Number.isInteger(surahNumber) || !Number.isInteger(ayahNumber)) return;
+  const early = new Image();
+  early.src = ayahPictureUrl(surahNumber, ayahNumber);
+}
 function showAyahImage(index) {
   if (!surahData || !surahData.ayahs[index]) return;
   const surahNumber = Number(surahData.number);
@@ -1020,8 +1113,9 @@ function showAyahImage(index) {
       if (token !== imageToken) return;
       ayahImg.style.opacity = "1";
     };
-    ayahImg.src = "https://cdn.islamic.network/quran/images/high-resolution/".concat(surahNumber, "_").concat(ayahNumber, ".png");
+    ayahImg.src = ayahPictureUrl(surahNumber, ayahNumber);
   }, 200);
+  prefetchAyahImage(index + 1);
 }
 function updateSurahAudioInfo() {
   refreshPlaybackInfo();
@@ -1037,9 +1131,13 @@ function playAyah(index) {
   if (!surahData || !surahData.ayahs[index]) return;
   isBismillah = false;
   const ayah = surahData.ayahs[index];
+  const ready = takeLookahead(ayah.audio);
   showAyahImage(index);
   refreshPlaybackInfo();
-  startClip(ayah.audio);
+  startClip(ready || ayah.audio);
+  const upcoming = nextAyahAudio(index);
+  if (upcoming) primeLookahead(upcoming);
+  else clearLookahead();
 }
 function finishCurrentPass() {
   if (currentRepeatCycle < maxRepeatCount) {
@@ -1456,6 +1554,9 @@ window.addEventListener("keydown", (event) => {
   }
   if (handleTransportKey(event)) return;
   retryBlockedPlayback(event);
+});
+window.addEventListener("keyup", (event) => {
+  handleTransportKey(event);
 });
 (function init() {
   return __async(this, null, function* () {

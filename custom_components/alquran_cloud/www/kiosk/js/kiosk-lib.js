@@ -14,6 +14,32 @@ function isAllowedMediaUrl(value) {
   }
 }
 
+const AUDIO_BITRATES = { 32: true, 40: true, 48: true, 64: true, 128: true, 192: true };
+
+function lookaheadAudioPath(cdnUrl) {
+  let url;
+  try {
+    url = new URL(cdnUrl);
+  } catch (err) {
+    return '';
+  }
+  if (url.protocol !== 'https:' || url.hostname !== 'cdn.islamic.network') return '';
+  const match = /^\/quran\/audio\/(\d+)\/([A-Za-z0-9][A-Za-z0-9._-]{0,127})\/(\d+)\.mp3$/.exec(url.pathname);
+  if (!match || !AUDIO_BITRATES[Number(match[1])]) return '';
+  const number = Number(match[3]);
+  if (number < 1 || number > 6236) return '';
+  return `audio/${match[1]}/${match[2]}/${number}.mp3`;
+}
+
+function isPlayableClipUrl(value) {
+  if (isAllowedMediaUrl(value)) return true;
+  try {
+    return new URL(value).protocol === 'blob:';
+  } catch (err) {
+    return false;
+  }
+}
+
 function sanitizeReciter(item) {
   if (!item || typeof item !== 'object') return null;
   const id = safeEditionId(item.id || item.identifier, '');
@@ -245,6 +271,8 @@ function videoResponse(buffer, range) {
 const kioskLib = {
   safeEditionId,
   isAllowedMediaUrl,
+  lookaheadAudioPath,
+  isPlayableClipUrl,
   sanitizeReciter,
   clampCacheDays,
   boundedQueryInt,

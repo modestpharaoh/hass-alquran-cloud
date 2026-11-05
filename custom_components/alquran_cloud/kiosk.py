@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import logging
+import re
 from ipaddress import ip_address, ip_network
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
-from aiohttp import web
+from aiohttp import ClientError, ClientSession, ClientTimeout, web
 
 from .const import CONF_KIOSK_ALLOW_PRIVATE, CONF_KIOSK_TRUSTED_NETWORKS, DOMAIN, LANG_ARABIC
 from .video import LocalMediaError
@@ -19,6 +20,10 @@ _EMPTY_ADAPTERS_LOGGED = False
 
 KIOSK_ROOT = Path(__file__).parent / "www" / "kiosk"
 KIOSK_PREFIX = "/api/alquran_cloud/kiosk/"
+_AUDIO_BITRATES = {32, 40, 48, 64, 128, 192}
+_AYAH_AUDIO_COUNT = 6236
+_EDITION_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+_LOOKAHEAD_AUDIO = re.compile(r"^audio/(\d+)/([^/]+)/(\d+)\.mp3$")
 
 VIDEO_BROWSER_PLATFORMS = frozenset(
     {
@@ -82,6 +87,56 @@ def hass_base_url(hass: Any) -> str:
             raise LocalMediaError(
                 "Home Assistant has no URL the TV can open. Set one under Settings > System > Network."
             ) from err
+
+
+def lookahead_audio_url(path: str) -> str | None:
+    """Return the CDN MP3 for one lookahead path, or None when the path is not one ayah."""
+    match = _LOOKAHEAD_AUDIO.fullmatch((path or "").split("?", 1)[0].lstrip("/"))
+    if match is None:
+        return None
+    bitrate = int(match.group(1))
+    edition = match.group(2)
+    number = int(match.group(3))
+    if bitrate not in _AUDIO_BITRATES or _EDITION_ID.fullmatch(edition) is None:
+        return None
+    if number < 1 or number > _AYAH_AUDIO_COUNT:
+        return None
+    return f"https://cdn.islamic.network/quran/audio/{bitrate}/{edition}/{number}.mp3"
+
+
+async def stream_lookahead_audio(request: web.Request, url: str, hass: Any) -> web.StreamResponse:
+    """Pass one CDN ayah through to the TV. The bytes are not stored."""
+    session: ClientSession | None = None
+    owns_session = False
+    if hass is not None:
+        try:
+            from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+            session = async_get_clientsession(hass)
+        except (ImportError, RuntimeError, AttributeError):
+            session = None
+    if session is None:
+        session = ClientSession(timeout=ClientTimeout(total=60))
+        owns_session = True
+    try:
+        async with session.get(url) as upstream:
+            if upstream.status != 200:
+                return web.Response(status=502, text="Audio was not available")
+            headers = {"Content-Type": "audio/mpeg", "Cache-Control": "private, max-age=86400"}
+            length = upstream.headers.get("Content-Length")
+            if length and length.isdigit():
+                headers["Content-Length"] = length
+            response = web.StreamResponse(status=200, headers=headers)
+            await response.prepare(request)
+            async for chunk in upstream.content.iter_chunked(64 * 1024):
+                await response.write(chunk)
+            await response.write_eof()
+            return response
+    except (ClientError, TimeoutError, OSError):
+        return web.Response(status=502, text="Audio was not available")
+    finally:
+        if owns_session:
+            await session.close()
 
 
 def resolve_kiosk_file(root: Path, raw: str) -> Path | None:
@@ -301,6 +356,9 @@ class QuranKioskView:
                 adapter_count=len(networks),
                 trusted_count=len(trusted),
             )
+        cdn_audio = lookahead_audio_url(path)
+        if cdn_audio:
+            return await stream_lookahead_audio(request, cdn_audio, hass)
         target = resolve_kiosk_file(KIOSK_ROOT, path or request.path.removeprefix("/api/alquran_cloud/kiosk"))
         if target is None:
             return web.Response(status=404, text="Not found")

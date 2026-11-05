@@ -7,10 +7,12 @@ from types import SimpleNamespace
 
 import pytest
 
+from custom_components.alquran_cloud import kiosk as kiosk_module
 from custom_components.alquran_cloud.kiosk import (
     InvalidTrustedNetwork,
     QuranKioskView,
     client_on_kiosk_network,
+    lookahead_audio_url,
     networks_from_adapters,
     parse_trusted_networks,
 )
@@ -100,3 +102,43 @@ async def test_kiosk_view_refuses_public_and_serves_loopback():
     assert denied.status == 403
     allowed = await view.get(Request("127.0.0.1"), "")
     assert allowed.status == 200
+
+
+def test_lookahead_audio_url_accepts_one_ayah():
+    assert lookahead_audio_url("audio/128/ar.alafasy/1.mp3") == (
+        "https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3"
+    )
+    assert lookahead_audio_url("/audio/64/ar.husary/6236.mp3") == (
+        "https://cdn.islamic.network/quran/audio/64/ar.husary/6236.mp3"
+    )
+    assert lookahead_audio_url("audio/96/ar.alafasy/1.mp3") is None
+    assert lookahead_audio_url("audio/128/../1.mp3") is None
+    assert lookahead_audio_url("audio/128/ar.alafasy/0.mp3") is None
+    assert lookahead_audio_url("audio/128/ar.alafasy/6237.mp3") is None
+    assert lookahead_audio_url("index.html") is None
+
+
+@pytest.mark.asyncio
+async def test_lookahead_route_stays_on_the_local_network(monkeypatch):
+    seen = {}
+
+    async def fake_stream(request, url, hass):
+        seen["url"] = url
+        from aiohttp import web
+
+        return web.Response(status=200, body=b"mp3")
+
+    monkeypatch.setattr(kiosk_module, "stream_lookahead_audio", fake_stream)
+    view = QuranKioskView()
+
+    class Request:
+        def __init__(self, remote: str):
+            self.remote = remote
+            self.path = "/api/alquran_cloud/kiosk/audio/128/ar.alafasy/1.mp3"
+
+    denied = await view.get(Request("8.8.8.8"), "audio/128/ar.alafasy/1.mp3")
+    assert denied.status == 403
+    assert "url" not in seen
+    allowed = await view.get(Request("127.0.0.1"), "audio/128/ar.alafasy/1.mp3")
+    assert allowed.status == 200
+    assert seen["url"] == "https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3"

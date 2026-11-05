@@ -59,6 +59,10 @@ The space bar toggles play and pause. It still types a space in a text field. Pl
 
 Surah text, ayah lists, and reciters come from `https://api.alquran.cloud`. Ayah audio and ayah images come from `https://cdn.islamic.network`. Those hosts are HTTPS. The Home Assistant page itself may be HTTP on the LAN. The CDN does not send CORS headers. An `<audio>` or `<img>` element can still load those URLs. A `fetch()` from a service worker cannot read them, and a `no-cors` response is opaque.
 
+The ayah that is playing stays a direct CDN file. While it plays, the page asks Home Assistant for the next ayah only. Home Assistant fetches that one MP3 from the CDN and passes the bytes to the TV. The page holds that single file in memory and starts it when the current ayah ends, so the TV does not wait for a new CDN connection. If the next file has not arrived yet, the page plays the CDN address as before. Home Assistant does not keep the recording. The ayah picture is the high-resolution CDN image on every TV, and the next picture starts loading during the current ayah.
+
+Play and pause follow the audio element, including when webOS pauses the clip itself and only then delivers the key. The play and pause marks are chosen by the button’s playing state, because the SVG `hidden` attribute does not change what this browser draws. Next and previous are also read on key release, which is when some webOS sets deliver those media keys.
+
 Bismillah (the opening image and a short clip) plays for ayah 1 of every surah except surah 1 and surah 9. The image file is `assets/bismillah.png` and is also the initial `src` of the ayah image, same as the video tag, so it appears even if the script is slow.
 
 ## Service worker
