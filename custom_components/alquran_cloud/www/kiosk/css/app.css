@@ -14,6 +14,32 @@
     }
     #bg.hidden { opacity: 0; pointer-events: none; }
 
+    /* Still frames keep moving on TVs that can play only one media element. */
+    #bg-stills {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      z-index: 1; pointer-events: none;
+    }
+    #bg-stills.hidden { display: none; }
+    #bg-stills img {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      object-fit: cover; opacity: 0; filter: brightness(0.65);
+      animation: bg-still 36s infinite;
+    }
+    #bg-stills img:nth-child(1) { animation-delay: 0s; }
+    #bg-stills img:nth-child(2) { animation-delay: 6s; }
+    #bg-stills img:nth-child(3) { animation-delay: 12s; }
+    #bg-stills img:nth-child(4) { animation-delay: 18s; }
+    #bg-stills img:nth-child(5) { animation-delay: 24s; }
+    #bg-stills img:nth-child(6) { animation-delay: 30s; }
+    @keyframes bg-still {
+      0% { opacity: 0; }
+      3% { opacity: 1; }
+      14% { opacity: 1; }
+      20% { opacity: 0; }
+      100% { opacity: 0; }
+    }
+    #btn-speed-toggle[hidden] { display: none !important; }
+
     /* Vignette & Gradient Overlay */
     #overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;

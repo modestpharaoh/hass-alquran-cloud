@@ -139,9 +139,17 @@ function cacheStatusText() {
 }
 function oldTvBrowser() {
   const ua = navigator.userAgent || "";
-  const match = /Chrome\/(\d+)/.exec(ua);
-  const major = match ? parseInt(match[1], 10) : 0;
-  return /Web0S|webOS|SmartTV/i.test(ua) && major > 0 && major < 80;
+  const chrome = /Chrome\/(\d+)/.exec(ua);
+  const chromeMajor = chrome ? parseInt(chrome[1], 10) : 0;
+  if (/Web0S|webOS/i.test(ua)) return chromeMajor > 0 && chromeMajor < 80;
+  if (!/Smart-?TV|Tizen/i.test(ua)) return false;
+  const tizen = /Tizen\s+(\d+)(?:\.(\d+))?/i.exec(ua);
+  if (tizen) {
+    const major = parseInt(tizen[1], 10);
+    const minor = parseInt(tizen[2] || "0", 10);
+    return major < 6 || major === 6 && minor < 5;
+  }
+  return chromeMajor === 0 || chromeMajor < 80;
 }
 function registerMediaWorker() {
   return __async(this, null, function* () {
@@ -199,7 +207,8 @@ let reciter = safeEditionId(params.get("reciter"), "ar.alafasy");
 let autoNextSurah = params.get("auto_surah") === "true";
 let loopEnabled = params.get("loop") === "true";
 const requestedSpeed = parseFloat(params.get("speed") || "1");
-let currentSpeed = AVAILABLE_SPEEDS.includes(requestedSpeed) ? requestedSpeed : 1;
+const legacyTv = oldTvBrowser();
+let currentSpeed = !legacyTv && AVAILABLE_SPEEDS.includes(requestedSpeed) ? requestedSpeed : 1;
 let maxRepeatCount = queryInt("repeat", 1, 1, 20);
 let currentRepeatCycle = 1;
 let bgVideoEnabled = params.get("background_video") === "true";
@@ -406,6 +415,7 @@ function updatePlayButton() {
   btnPlayPause.classList.toggle("active", continuingPlayback);
 }
 function applyPlaybackRate() {
+  if (legacyTv) return;
   try {
     audio.playbackRate = currentSpeed;
   } catch (err) {
@@ -470,18 +480,76 @@ function updateBgButton() {
   const label = document.getElementById("bg-label");
   if (label) label.textContent = bgVideoEnabled ? t("bgOn") : t("bgOff");
 }
-function applyBackground() {
-  if (!bgVideo) return;
-  bgVideo.classList.toggle("hidden", !bgVideoEnabled);
-  if (btnToggleBg) btnToggleBg.classList.toggle("active", bgVideoEnabled);
-  if (bgVideoEnabled) {
-    const pending = bgVideo.play();
-    if (pending && typeof pending.catch === "function") pending.catch(() => {
-    });
-  } else {
-    bgVideo.pause();
+let bgHold = false;
+let bgRestartAt = 0;
+const BG_VIDEO = "assets/landscape-tree-clouds.mp4";
+function bgStills() {
+  return document.getElementById("bg-stills");
+}
+function playBackgroundVideo() {
+  if (legacyTv || !bgVideo || !bgVideoEnabled) return;
+  bgHold = false;
+  const stills = bgStills();
+  if (stills) stills.classList.add("hidden");
+  if (!bgVideo.getAttribute("src")) bgVideo.src = BG_VIDEO;
+  bgVideo.classList.remove("hidden");
+  const pending = bgVideo.play();
+  if (pending && typeof pending.catch === "function") pending.catch(() => {
+  });
+}
+function restartBackgroundVideo() {
+  if (legacyTv || !bgVideo || !bgVideoEnabled) return;
+  if (audio && !audio.paused) return;
+  const now = Date.now();
+  if (now - bgRestartAt < 400) return;
+  bgRestartAt = now;
+  try {
+    bgVideo.currentTime = 0;
+  } catch (err) {
   }
+  playBackgroundVideo();
+}
+function applyBackground() {
+  if (btnToggleBg) btnToggleBg.classList.toggle("active", bgVideoEnabled);
+  const stills = bgStills();
+  if (legacyTv) {
+    if (bgVideo) {
+      bgHold = true;
+      bgVideo.classList.add("hidden");
+      try {
+        bgVideo.pause();
+      } catch (err) {
+      }
+    }
+    if (stills) stills.classList.toggle("hidden", !bgVideoEnabled);
+    updateBgButton();
+    return;
+  }
+  if (!bgVideo) return;
+  if (!bgVideoEnabled) {
+    bgHold = true;
+    bgVideo.classList.add("hidden");
+    try {
+      bgVideo.pause();
+    } catch (err) {
+    }
+    if (stills) stills.classList.add("hidden");
+    updateBgButton();
+    return;
+  }
+  playBackgroundVideo();
   updateBgButton();
+}
+if (bgVideo && !legacyTv) {
+  bgVideo.addEventListener("ended", () => {
+    if (!bgVideoEnabled) return;
+    restartBackgroundVideo();
+  });
+  bgVideo.addEventListener("pause", () => {
+    if (bgHold || !bgVideoEnabled) return;
+    if (audio && !audio.paused) return;
+    restartBackgroundVideo();
+  });
 }
 function updateAutoButton() {
   if (!btnAutoSurah) return;
@@ -578,6 +646,7 @@ audio.onplay = () => {
 audio.onpause = () => {
   if (continuingPlayback) return;
   updatePlayButton();
+  if (bgVideoEnabled) playBackgroundVideo();
 };
 audio.onerror = () => {
   const src = audio.currentSrc || "";
@@ -589,7 +658,8 @@ audio.onerror = () => {
 };
 function updateSpeedUI() {
   speedLabel.innerText = "".concat(currentSpeed, "x");
-  if (audio) applyPlaybackRate();
+  if (legacyTv && btnSpeedToggle) btnSpeedToggle.setAttribute("hidden", "");
+  if (audio && !legacyTv) applyPlaybackRate();
 }
 function updateRepeatUI() {
   repeatLabel.textContent = t("repeat", { current: currentRepeatCycle, max: maxRepeatCount });
@@ -602,6 +672,7 @@ function updateRangeUI() {
   }
 }
 btnSpeedToggle.onclick = () => {
+  if (legacyTv) return;
   let idx = AVAILABLE_SPEEDS.indexOf(currentSpeed);
   idx = (idx + 1) % AVAILABLE_SPEEDS.length;
   currentSpeed = AVAILABLE_SPEEDS[idx];

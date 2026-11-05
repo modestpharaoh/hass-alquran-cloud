@@ -95,9 +95,13 @@ npx esbuild custom_components/alquran_cloud/www/kiosk/js/app.js \
   --outfile=custom_components/alquran_cloud/www/kiosk/js/app.compat.js
 ```
 
-`oldTvBrowser()` skips service-worker registration when the user agent contains `Web0S` / `webOS` / `SmartTV` and Chrome is older than 80. That covers webOS 4 (Chrome 53), webOS 5 (Chrome 68), and webOS 6 (Chrome 79). Newer webOS can register the worker. The worker still does not sit in front of audio or images.
+`oldTvBrowser()` is webOS with Chrome older than 80 (webOS 4, 5, and 6), and older Samsung sets: Tizen before 6.5, or a SmartTV browser that does not name a Tizen version and whose Chrome is missing or older than 80. Many of those Samsung user agents never include `Chrome/`, so the Tizen version is what decides. Tizen 6.5 and newer stay on the normal path. The worker is not registered for these old browsers. Newer webOS can register it. The worker still does not sit in front of audio or images.
 
-`system.launcher/open` is not a user gesture, so the first `audio.play()` is often rejected. The page remembers that and retries on the next click or remote key, calling `load()` and `play()` in that handler. `playbackRate` is applied inside a try, because some TV browsers throw if it is set before metadata loads.
+`system.launcher/open` is not a user gesture, so the first `audio.play()` is often rejected. The page remembers that and retries on the next click or remote key, calling `load()` and `play()` in that handler.
+
+webOS 4, 5, and 6, and Samsung sets from before Tizen 6.5, never load the landscape video. Those browsers will only run one media element, so a clip behind the ayah audio stops after a few seconds and does not loop. With the background on, they crossfade the six JPEG frames in `assets/bg/` instead. The frames do not use the media decoder, so they keep changing under the recitation. A PC, Android TV, or Tizen 6.5 and newer still gets the 1080p clip. The page sets that file as the video source only for those browsers, and restarts it from the start when it ends.
+
+Playback speed is locked to 1× on those same old TVs. The decoder ignores `playbackRate` without throwing, and this Chrome has no pitch-preserving rate change. The speed button is hidden, and a `speed=` value in the address is ignored. The dashboard card still offers other speeds for speakers and for newer browsers.
 
 CSS that Chromium 53 ignores is given a fallback under `@supports not (gap: 1px)`: button margins, and surah cards as inline blocks instead of a grid.
 
