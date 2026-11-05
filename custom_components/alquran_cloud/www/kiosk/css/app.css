@@ -266,6 +266,7 @@
     }
     .btn-danger:hover { background: rgba(239, 68, 68, 0.32); }
     #cache-status { color: #94a3b8; font-size: 0.82rem; line-height: 1.45; min-height: 2.4em; }
+    .remote-skip button { flex: 1; justify-content: center; margin: 0 4px; }
     .settings-reset {
       display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
       padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.1);

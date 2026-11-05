@@ -110,6 +110,8 @@ function mediaKeyAction(event) {
   }
   if (key === "MediaPause" || key === "MediaStop" || code === 19 || code === 127 || code === 413) return "pause";
   if (code === 126) return "play";
+  if (key === "MediaTrackNext" || code === 176 || code === 10233) return "next";
+  if (key === "MediaTrackPrevious" || code === 177 || code === 10232) return "prev";
   return "";
 }
 function compareReciterItems(a, b, favorites, language) {

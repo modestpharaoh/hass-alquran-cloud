@@ -28,6 +28,7 @@ const AVAILABLE_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 let cacheExpiryDays = 7;
 let language = "en";
 let favoriteReciters = [];
+let remoteSkip = "ayah";
 let playbackNote = "";
 let storedSettings = {};
 let playbackReady = false;
@@ -41,6 +42,7 @@ function readCacheSettings() {
     cacheExpiryDays = clampCacheDays(parsed.cacheExpiryDays, cacheExpiryDays);
     language = parsed.language === "ar" ? "ar" : "en";
     favoriteReciters = Array.isArray(parsed.favorites) ? parsed.favorites.filter((id) => safeEditionId(id, "")).slice(0, 100) : [];
+    remoteSkip = parsed.remoteSkip === "surah" ? "surah" : "ayah";
   } catch (err) {
     console.warn("Settings read error:", err);
   }
@@ -50,7 +52,8 @@ function persistSettings() {
     const payload = {
       cacheExpiryDays,
       language,
-      favorites: favoriteReciters
+      favorites: favoriteReciters,
+      remoteSkip: remoteSkip === "surah" ? "surah" : "ayah"
     };
     if (playbackReady) {
       payload.surah = currentSurah;
@@ -317,7 +320,11 @@ const STRINGS = {
     clearCache: "Clear cache",
     save: "Save",
     resetSettings: "Reset settings",
-    resetHint: "Restores English, surah 1, Alafasy, speed 1, and repeat 1. Turns off auto-next, loop, and the background. Removes every favorite reciter and sets the cache period back to 7 days. Downloaded audio is kept.",
+    resetHint: "Restores English, surah 1, Alafasy, speed 1, and repeat 1. Turns off auto-next, loop, and the background. Remote next and previous return to the ayah. Removes every favorite reciter and sets the cache period back to 7 days. Downloaded audio is kept.",
+    remoteSkipLabel: "Remote next and previous",
+    remoteSkipAyah: "Ayah",
+    remoteSkipSurah: "Surah",
+    remoteSkipHint: "Next and previous on the remote move one ayah. Choose Surah to move a whole surah instead.",
     settingsReset: "Settings restored.",
     repeatTitle: "Repeat the surah or selected range",
     repeatCountLabel: "Repeat count (1 to 20):",
@@ -386,7 +393,11 @@ const STRINGS = {
     clearCache: "\u0645\u0633\u062D \u0627\u0644\u062A\u062E\u0632\u064A\u0646 \u0627\u0644\u0645\u0624\u0642\u062A",
     save: "\u062D\u0641\u0638",
     resetSettings: "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0636\u0628\u0637",
-    resetHint: "\u064A\u0639\u064A\u062F \u0627\u0644\u0625\u0646\u062C\u0644\u064A\u0632\u064A\u0629\u060C \u0648\u0627\u0644\u0633\u0648\u0631\u0629 1\u060C \u0648\u0627\u0644\u0642\u0627\u0631\u0626 \u0627\u0644\u0639\u0641\u0627\u0633\u064A\u060C \u0648\u0627\u0644\u0633\u0631\u0639\u0629 1\u060C \u0648\u0627\u0644\u062A\u0643\u0631\u0627\u0631 1\u060C \u0648\u064A\u0648\u0642\u0641 \u0627\u0644\u062A\u0627\u0644\u064A \u0627\u0644\u062A\u0644\u0642\u0627\u0626\u064A \u0648\u0627\u0644\u0625\u0639\u0627\u062F\u0629 \u0648\u0627\u0644\u062E\u0644\u0641\u064A\u0629. \u064A\u0632\u064A\u0644 \u0643\u0644 \u0627\u0644\u0642\u0631\u0627\u0621 \u0627\u0644\u0645\u0641\u0636\u0644\u064A\u0646 \u0648\u064A\u0639\u064A\u062F \u0645\u062F\u0629 \u0627\u0644\u062A\u062E\u0632\u064A\u0646 \u0625\u0644\u0649 7 \u0623\u064A\u0627\u0645. \u0627\u0644\u0645\u0644\u0641\u0627\u062A \u0627\u0644\u0645\u062D\u0641\u0648\u0638\u0629 \u062A\u0628\u0642\u0649.",
+    resetHint: "\u064A\u0639\u064A\u062F \u0627\u0644\u0625\u0646\u062C\u0644\u064A\u0632\u064A\u0629\u060C \u0648\u0627\u0644\u0633\u0648\u0631\u0629 1\u060C \u0648\u0627\u0644\u0642\u0627\u0631\u0626 \u0627\u0644\u0639\u0641\u0627\u0633\u064A\u060C \u0648\u0627\u0644\u0633\u0631\u0639\u0629 1\u060C \u0648\u0627\u0644\u062A\u0643\u0631\u0627\u0631 1\u060C \u0648\u064A\u0648\u0642\u0641 \u0627\u0644\u062A\u0627\u0644\u064A \u0627\u0644\u062A\u0644\u0642\u0627\u0626\u064A \u0648\u0627\u0644\u0625\u0639\u0627\u062F\u0629 \u0648\u0627\u0644\u062E\u0644\u0641\u064A\u0629. \u0632\u0631 \u0627\u0644\u062A\u0627\u0644\u064A \u0648\u0627\u0644\u0633\u0627\u0628\u0642 \u0641\u064A \u062C\u0647\u0627\u0632 \u0627\u0644\u062A\u062D\u0643\u0645 \u064A\u0639\u0648\u062F \u0644\u0644\u0622\u064A\u0629. \u064A\u0632\u064A\u0644 \u0643\u0644 \u0627\u0644\u0642\u0631\u0627\u0621 \u0627\u0644\u0645\u0641\u0636\u0644\u064A\u0646 \u0648\u064A\u0639\u064A\u062F \u0645\u062F\u0629 \u0627\u0644\u062A\u062E\u0632\u064A\u0646 \u0625\u0644\u0649 7 \u0623\u064A\u0627\u0645. \u0627\u0644\u0645\u0644\u0641\u0627\u062A \u0627\u0644\u0645\u062D\u0641\u0648\u0638\u0629 \u062A\u0628\u0642\u0649.",
+    remoteSkipLabel: "\u0627\u0644\u062A\u0627\u0644\u064A \u0648\u0627\u0644\u0633\u0627\u0628\u0642 \u0641\u064A \u062C\u0647\u0627\u0632 \u0627\u0644\u062A\u062D\u0643\u0645",
+    remoteSkipAyah: "\u0622\u064A\u0629",
+    remoteSkipSurah: "\u0633\u0648\u0631\u0629",
+    remoteSkipHint: "\u0627\u0644\u062A\u0627\u0644\u064A \u0648\u0627\u0644\u0633\u0627\u0628\u0642 \u0641\u064A \u062C\u0647\u0627\u0632 \u0627\u0644\u062A\u062D\u0643\u0645 \u064A\u0646\u0642\u0644\u0627\u0646 \u0622\u064A\u0629 \u0648\u0627\u062D\u062F\u0629. \u0627\u062E\u062A\u0631 \u0633\u0648\u0631\u0629 \u0644\u0644\u0627\u0646\u062A\u0642\u0627\u0644 \u0633\u0648\u0631\u0629 \u0643\u0627\u0645\u0644\u0629.",
     settingsReset: "\u062A\u0645\u062A \u0627\u0633\u062A\u0639\u0627\u062F\u0629 \u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A.",
     repeatTitle: "\u062A\u0643\u0631\u0627\u0631 \u0627\u0644\u0633\u0648\u0631\u0629 \u0623\u0648 \u0627\u0644\u0646\u0637\u0627\u0642 \u0627\u0644\u0645\u062D\u062F\u062F",
     repeatCountLabel: "\u0639\u062F\u062F \u0645\u0631\u0627\u062A \u0627\u0644\u062A\u0643\u0631\u0627\u0631 (1 \u0625\u0644\u0649 20):",
@@ -1267,6 +1278,28 @@ btnLoop.onclick = () => {
   updateLoopButton();
   persistSettings();
 };
+function updateRemoteSkipUI() {
+  const ayahBtn = document.getElementById("btn-remote-ayah");
+  const surahBtn = document.getElementById("btn-remote-surah");
+  if (ayahBtn) ayahBtn.classList.toggle("active", remoteSkip !== "surah");
+  if (surahBtn) surahBtn.classList.toggle("active", remoteSkip === "surah");
+}
+function skipFromRemote(direction) {
+  const surahStep = remoteSkip === "surah";
+  const id = direction === "next" ? surahStep ? "btn-next-surah" : "btn-next-ayah" : surahStep ? "btn-prev-surah" : "btn-prev-ayah";
+  const button = document.getElementById(id);
+  if (button) button.click();
+}
+document.getElementById("btn-remote-ayah").onclick = () => {
+  remoteSkip = "ayah";
+  updateRemoteSkipUI();
+  persistSettings();
+};
+document.getElementById("btn-remote-surah").onclick = () => {
+  remoteSkip = "surah";
+  updateRemoteSkipUI();
+  persistSettings();
+};
 document.getElementById("btn-language").onclick = () => {
   language = language === "en" ? "ar" : "en";
   persistSettings();
@@ -1313,6 +1346,7 @@ document.getElementById("btn-reset-settings").onclick = () => __async(null, null
   autoNextSurah = false;
   loopEnabled = false;
   bgVideoEnabled = false;
+  remoteSkip = "ayah";
   originSurah = 1;
   originStartAyah = 1;
   originEndAyah = null;
@@ -1322,6 +1356,7 @@ document.getElementById("btn-reset-settings").onclick = () => __async(null, null
   updateRangeUI();
   updateAutoButton();
   updateLoopButton();
+  updateRemoteSkipUI();
   applyBackground();
   updateReciterLabel();
   yield syncCacheSettings();
@@ -1381,6 +1416,8 @@ function handleTransportKey(event) {
     if (continuingPlayback) pausePlayback();
   } else if (action === "play") {
     if (!continuingPlayback) startPlayback();
+  } else if (action === "next" || action === "prev") {
+    skipFromRemote(action);
   } else {
     togglePlayback();
   }
@@ -1390,7 +1427,7 @@ function registerTvMediaKeys() {
   try {
     const device = window.tizen && window.tizen.tvinputdevice;
     if (!device || !device.registerKey) return;
-    ["MediaPlay", "MediaPause", "MediaPlayPause", "MediaStop"].forEach((name) => {
+    ["MediaPlay", "MediaPause", "MediaPlayPause", "MediaStop", "MediaTrackNext", "MediaTrackPrevious"].forEach((name) => {
       try {
         device.registerKey(name);
       } catch (err) {
@@ -1417,6 +1454,14 @@ function bindMediaSession() {
     if (!continuingPlayback || !acceptTransport()) return;
     pausePlayback();
   });
+  bind("nexttrack", () => {
+    if (!acceptTransport()) return;
+    skipFromRemote("next");
+  });
+  bind("previoustrack", () => {
+    if (!acceptTransport()) return;
+    skipFromRemote("prev");
+  });
 }
 registerTvMediaKeys();
 bindMediaSession();
@@ -1427,6 +1472,7 @@ window.addEventListener("keydown", (event) => {
 (function init() {
   return __async(this, null, function* () {
     applyLanguage();
+    updateRemoteSkipUI();
     updateSpeedUI();
     updateRepeatUI();
     updateRangeUI();

@@ -129,9 +129,17 @@
           <input type="number" id="cache-days-input" class="form-input" min="0" max="365" step="1" value="7">
         </div>
         <small data-i18n="cacheHint">The same period is used for the reciter list, audio, ayah images, and the background video. 0 turns caching off. Older files are removed when the period ends or browser storage fills up.</small>
+        <div class="form-group">
+          <label data-i18n="remoteSkipLabel">Remote next and previous</label>
+          <div class="form-row remote-skip">
+            <button type="button" id="btn-remote-ayah" class="toggle-btn" data-i18n="remoteSkipAyah">Ayah</button>
+            <button type="button" id="btn-remote-surah" class="toggle-btn" data-i18n="remoteSkipSurah">Surah</button>
+          </div>
+        </div>
+        <small data-i18n="remoteSkipHint">Next and previous on the remote move one ayah. Choose Surah to move a whole surah instead.</small>
         <div id="cache-status" data-i18n="cacheCounting">Counting...</div>
         <div class="settings-reset">
-          <small data-i18n="resetHint">Restores English, removes every favorite reciter, and sets the cache period back to 7 days. Downloaded audio is kept.</small>
+          <small data-i18n="resetHint">Restores English, surah 1, Alafasy, speed 1, and repeat 1. Turns off auto-next, loop, and the background. Remote next and previous return to the ayah. Removes every favorite reciter and sets the cache period back to 7 days. Downloaded audio is kept.</small>
           <button type="button" id="btn-reset-settings" class="btn-danger" data-i18n="resetSettings">Reset settings</button>
         </div>
       </div>

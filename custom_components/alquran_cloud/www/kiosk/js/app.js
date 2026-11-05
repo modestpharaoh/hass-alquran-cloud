@@ -9,6 +9,7 @@
     let cacheExpiryDays = 7;
     let language = 'en';
     let favoriteReciters = [];
+    let remoteSkip = 'ayah';
     let playbackNote = '';
     let storedSettings = {};
     let playbackReady = false;
@@ -25,6 +26,7 @@
         favoriteReciters = Array.isArray(parsed.favorites)
           ? parsed.favorites.filter((id) => safeEditionId(id, '')).slice(0, 100)
           : [];
+        remoteSkip = parsed.remoteSkip === 'surah' ? 'surah' : 'ayah';
       } catch (err) {
         console.warn('Settings read error:', err);
       }
@@ -35,7 +37,8 @@
         const payload = {
           cacheExpiryDays,
           language,
-          favorites: favoriteReciters
+          favorites: favoriteReciters,
+          remoteSkip: remoteSkip === 'surah' ? 'surah' : 'ayah'
         };
         if (playbackReady) {
           payload.surah = currentSurah;
@@ -315,7 +318,11 @@
         clearCache: 'Clear cache',
         save: 'Save',
         resetSettings: 'Reset settings',
-        resetHint: 'Restores English, surah 1, Alafasy, speed 1, and repeat 1. Turns off auto-next, loop, and the background. Removes every favorite reciter and sets the cache period back to 7 days. Downloaded audio is kept.',
+        resetHint: 'Restores English, surah 1, Alafasy, speed 1, and repeat 1. Turns off auto-next, loop, and the background. Remote next and previous return to the ayah. Removes every favorite reciter and sets the cache period back to 7 days. Downloaded audio is kept.',
+        remoteSkipLabel: 'Remote next and previous',
+        remoteSkipAyah: 'Ayah',
+        remoteSkipSurah: 'Surah',
+        remoteSkipHint: 'Next and previous on the remote move one ayah. Choose Surah to move a whole surah instead.',
         settingsReset: 'Settings restored.',
         repeatTitle: 'Repeat the surah or selected range',
         repeatCountLabel: 'Repeat count (1 to 20):',
@@ -384,7 +391,11 @@
         clearCache: 'مسح التخزين المؤقت',
         save: 'حفظ',
         resetSettings: 'إعادة الضبط',
-        resetHint: 'يعيد الإنجليزية، والسورة 1، والقارئ العفاسي، والسرعة 1، والتكرار 1، ويوقف التالي التلقائي والإعادة والخلفية. يزيل كل القراء المفضلين ويعيد مدة التخزين إلى 7 أيام. الملفات المحفوظة تبقى.',
+        resetHint: 'يعيد الإنجليزية، والسورة 1، والقارئ العفاسي، والسرعة 1، والتكرار 1، ويوقف التالي التلقائي والإعادة والخلفية. زر التالي والسابق في جهاز التحكم يعود للآية. يزيل كل القراء المفضلين ويعيد مدة التخزين إلى 7 أيام. الملفات المحفوظة تبقى.',
+        remoteSkipLabel: 'التالي والسابق في جهاز التحكم',
+        remoteSkipAyah: 'آية',
+        remoteSkipSurah: 'سورة',
+        remoteSkipHint: 'التالي والسابق في جهاز التحكم ينقلان آية واحدة. اختر سورة للانتقال سورة كاملة.',
         settingsReset: 'تمت استعادة الإعدادات.',
         repeatTitle: 'تكرار السورة أو النطاق المحدد',
         repeatCountLabel: 'عدد مرات التكرار (1 إلى 20):',
@@ -1376,6 +1387,34 @@
       persistSettings();
     };
 
+    function updateRemoteSkipUI() {
+      const ayahBtn = document.getElementById('btn-remote-ayah');
+      const surahBtn = document.getElementById('btn-remote-surah');
+      if (ayahBtn) ayahBtn.classList.toggle('active', remoteSkip !== 'surah');
+      if (surahBtn) surahBtn.classList.toggle('active', remoteSkip === 'surah');
+    }
+
+    function skipFromRemote(direction) {
+      const surahStep = remoteSkip === 'surah';
+      const id = direction === 'next'
+        ? (surahStep ? 'btn-next-surah' : 'btn-next-ayah')
+        : (surahStep ? 'btn-prev-surah' : 'btn-prev-ayah');
+      const button = document.getElementById(id);
+      if (button) button.click();
+    }
+
+    document.getElementById('btn-remote-ayah').onclick = () => {
+      remoteSkip = 'ayah';
+      updateRemoteSkipUI();
+      persistSettings();
+    };
+
+    document.getElementById('btn-remote-surah').onclick = () => {
+      remoteSkip = 'surah';
+      updateRemoteSkipUI();
+      persistSettings();
+    };
+
     document.getElementById('btn-language').onclick = () => {
       language = language === 'en' ? 'ar' : 'en';
       persistSettings();
@@ -1428,6 +1467,7 @@
       autoNextSurah = false;
       loopEnabled = false;
       bgVideoEnabled = false;
+      remoteSkip = 'ayah';
       originSurah = 1;
       originStartAyah = 1;
       originEndAyah = null;
@@ -1437,6 +1477,7 @@
       updateRangeUI();
       updateAutoButton();
       updateLoopButton();
+      updateRemoteSkipUI();
       applyBackground();
       updateReciterLabel();
       await syncCacheSettings();
@@ -1509,6 +1550,8 @@
         if (continuingPlayback) pausePlayback();
       } else if (action === 'play') {
         if (!continuingPlayback) startPlayback();
+      } else if (action === 'next' || action === 'prev') {
+        skipFromRemote(action);
       } else {
         togglePlayback();
       }
@@ -1519,7 +1562,7 @@
       try {
         const device = window.tizen && window.tizen.tvinputdevice;
         if (!device || !device.registerKey) return;
-        ['MediaPlay', 'MediaPause', 'MediaPlayPause', 'MediaStop'].forEach((name) => {
+        ['MediaPlay', 'MediaPause', 'MediaPlayPause', 'MediaStop', 'MediaTrackNext', 'MediaTrackPrevious'].forEach((name) => {
           try { device.registerKey(name); } catch (err) { /* the key is already registered */ }
         });
       } catch (err) {
@@ -1541,6 +1584,14 @@
         if (!continuingPlayback || !acceptTransport()) return;
         pausePlayback();
       });
+      bind('nexttrack', () => {
+        if (!acceptTransport()) return;
+        skipFromRemote('next');
+      });
+      bind('previoustrack', () => {
+        if (!acceptTransport()) return;
+        skipFromRemote('prev');
+      });
     }
 
     registerTvMediaKeys();
@@ -1553,6 +1604,7 @@
     // --- 11. Initial Launch ---
     (async function init() {
       applyLanguage();
+      updateRemoteSkipUI();
       updateSpeedUI();
       updateRepeatUI();
       updateRangeUI();
