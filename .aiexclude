@@ -1,0 +1,11 @@
+# Gemini Code Assist context exclusion. Git still tracks the media.
+.venv/
+node_modules/
+.pytest_cache/
+__pycache__/
+.env
+.env.*
+
+custom_components/alquran_cloud/www/kiosk/assets/
+custom_components/alquran_cloud/**/*.png
+docs/*.png

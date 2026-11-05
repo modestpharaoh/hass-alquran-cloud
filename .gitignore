@@ -1,6 +1,41 @@
+# Byte-compiled / optimized / DLL files
 __pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Unit test / coverage
 .pytest_cache/
-.venv/
-node_modules/
-*.pyc
+.coverage
+.coverage.*
+htmlcov/
 .cache/
+.mypy_cache/
+
+# Environments and secrets
+.env
+.env.*
+.venv/
+venv/
+node_modules/
+
+# Home Assistant local runtime
+.storage
+.cloud
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Agent-local overrides. The shared guides stay tracked.
+**/.claude/settings.local.json
+CLAUDE.local.md
+AGENTS.override.md
+.gemini/

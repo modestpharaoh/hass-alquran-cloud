@@ -1,0 +1,9 @@
+# Cursor indexing ignore
+.venv/
+node_modules/
+.pytest_cache/
+__pycache__/
+
+custom_components/alquran_cloud/www/kiosk/assets/
+custom_components/alquran_cloud/**/*.png
+docs/*.png
