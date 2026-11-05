@@ -49,7 +49,7 @@ Speeds other than 1 are written into the cached audio file. Repeat plays that fi
 
 ![Quran player](docs/quran-player.png)
 
-Turn on **Web app**. Home Assistant opens `/api/alquran_cloud/kiosk/` in the TV browser with the reciter, surah, ayah range, speed, repeat, continue, loop, and background video in the address. The TV then owns playback. The card shows **On the TV** and does not follow the ayah. The TV going idle does not end the session. `background_video` defaults to off. Turn it on to play the landscape clip behind the page. It does nothing for joined audio. The card shows that switch only while **Web app** is on.
+Turn on **Web app**. Home Assistant opens `/api/alquran_cloud/kiosk/` in the TV browser with the reciter, surah, ayah range, speed, repeat, continue, loop, and background video in the address. The TV then owns playback. The card does not show the surah or reciter for that session. It can play, pause, and send next or previous track, and it does not follow the ayah. The TV page decides whether that step is an ayah or a surah. The TV going idle does not end the session. `background_video` defaults to off. Turn it on to play the landscape clip behind the page. It does nothing for joined audio. The card shows that switch only while **Web app** is on.
 
 The player list in that mode contains only LG webOS, Samsung, and Android TV (`androidtv`, including Fire TV), in alphabetical order. Chromecast stays on the audio list. A Chromecast with Google TV can be used when that device is also set up as Android TV.
 

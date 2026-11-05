@@ -61,13 +61,13 @@ If the saved `entity` is not one of those TVs, the select is cleared and the car
 
 ## While it plays
 
-The stage shows the brand mark, the surah line, the reciter, and the Madinah mushaf line when the session has an album or is a web app session.
+In audio mode the stage shows the brand mark, the surah line, the reciter, and the Madinah mushaf line when the session has an album.
 
 The card speaks the integration’s display language, from `display_language` on the active-sessions sensor. It does not follow the Home Assistant locale. Arabic shows Arabic names and Eastern Arabic digits. The count word follows the last two digits: 3–10 is آيات, 2 is آيتان, and every other ending is آية, so Al-Kawthar is ٣ آيات and Al-Baqara is ٢٨٦ آية. English shows English names and ayahs. In Arabic the previous control points right and the next control points left. Audio mode shows the range that was requested, not the ayah under the playhead. A partial range is `001:005` plus the surah name. A surah played through the last ayah keeps the surah line and adds the ayah count, such as `108 · Al-Kawthar · 3 ayahs`. The card reads that session from `sensor.al_quran_cloud_active_sessions`. The progress bar still advances once a second from `media_position`. When playback moves to another surah, the sensor title changes immediately, before the next joined file is finished. Pause is available when the player supports play or pause.
 
 The volume row is directly under the media player when that player reports a level or supports volume. The percent, such as `42%`, sits just before the increase button. Plus, minus, and the slider all update that number together.
 
-Web app mode hides the progress bar, the pause button, and the next and previous buttons. The stage says that Home Assistant does not follow the TV. Volume controls stay if the entity supports volume. The background switch is shown only in this mode and is sent as `background_video`.
+Web app mode hides the progress bar and the surah, reciter, and status lines. The stage keeps a note that Home Assistant does not track the ayah on the TV, plus previous, play, pause, and next. Play and pause are separate buttons and call the media player’s play and pause. Next and previous call `media_next_track` and `media_previous_track`. The TV page decides whether that step is an ayah or a surah. Volume controls stay if the entity supports volume. The background switch is shown only in this mode and is sent as `background_video`.
 
 Continue-to-next stays available in web app mode for a full surah. The TV player receives it as `auto_surah`. Loop stays available in both modes and is sent as `loop`. Background video is shown only while the web app is selected.
 
@@ -77,4 +77,5 @@ Continue-to-next stays available in web app mode for a full surah. The TV player
 - Players are alphabetical in both modes.
 - Web app mode never offers a speaker or a Chromecast. A saved non-TV entity is dropped rather than sent to a player that cannot open the page.
 - The card does not estimate the current ayah while the web app is open. The session is the range that was opened.
-- Pause and progress belong to the joined MP3, not to the TV page.
+- In web app mode the stage does not show that surah or reciter. It offers play, pause, and next and previous track.
+- Progress belongs to the joined MP3, not to the TV page. Audio mode keeps one button that switches between play and pause.

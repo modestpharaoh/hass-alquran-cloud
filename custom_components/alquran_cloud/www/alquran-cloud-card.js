@@ -23,7 +23,7 @@ const STRINGS = {
     loop: "Loop",
     webapp: "Web app",
     webappHelp: "Opens the Quran web app in the TV browser. Home Assistant does not follow the ayah after that.",
-    webappFollow: "Home Assistant does not follow the TV. The TV browser owns playback, so this card will not move the surah or the ayah.",
+    webappFollow: "Home Assistant does not track the ayah on the TV. This card can play, pause, and send next or previous. The TV setting chooses an ayah or a surah.",
     openingNext: "Opening the next surah…",
     openingPrevious: "Opening the previous surah…",
     background: "Background video",
@@ -34,6 +34,8 @@ const STRINGS = {
     resume: "Resume",
     previous: "Previous surah",
     next: "Next surah",
+    trackPrevious: "Previous",
+    trackNext: "Next",
     stop: "Stop",
     idle: "Ready",
     error: "Could not load the catalog",
@@ -59,7 +61,7 @@ const STRINGS = {
     loop: "إعادة التشغيل",
     webapp: "تطبيق الويب",
     webappHelp: "يفتح تطبيق القرآن في متصفح التلفاز. هوم أسيستنت لا يتابع الآية بعد ذلك.",
-    webappFollow: "هوم أسيستنت لا يتابع التلفاز. المتصفح على التلفاز يملك التشغيل، وهذه البطاقة لن تغيّر السورة أو الآية.",
+    webappFollow: "هوم أسيستنت لا يتابع الآية على التلفاز. هذه البطاقة تستطيع التشغيل والإيقاف وإرسال التالي أو السابق. إعداد التلفاز يختار الآية أو السورة.",
     openingNext: "جارٍ فتح السورة التالية…",
     openingPrevious: "جارٍ فتح السورة السابقة…",
     background: "فيديو الخلفية",
@@ -70,6 +72,8 @@ const STRINGS = {
     resume: "استئناف",
     previous: "السورة السابقة",
     next: "السورة التالية",
+    trackPrevious: "السابق",
+    trackNext: "التالي",
     stop: "إيقاف",
     idle: "جاهز",
     error: "تعذر تحميل القائمة",
@@ -471,12 +475,16 @@ class AlquranCloudCard extends HTMLElement {
     this._previousButton = iconButton("jump", "mdi:skip-previous");
     this._pauseButton = iconButton("pause", "mdi:pause");
     this._nextButton = iconButton("jump", "mdi:skip-next");
+    this._playTransport = iconButton("pause", "mdi:play");
+    this._playTransport.hidden = true;
+    this._playTransport.addEventListener("click", () => this._transportAction("play"));
     this._previousButton.addEventListener("click", () => this._transportAction("previous"));
     this._pauseButton.addEventListener("click", () => this._transportAction("pause"));
     this._nextButton.addEventListener("click", () => this._transportAction("next"));
-    this._transport.append(this._previousButton, this._pauseButton, this._nextButton);
+    this._transport.append(this._previousButton, this._playTransport, this._pauseButton, this._nextButton);
+    this._art = brandImage("art");
     stage.append(
-      brandImage("art"),
+      this._art,
       this._surahLine,
       this._reciterLine,
       this._mushafLine,
@@ -734,6 +742,11 @@ class AlquranCloudCard extends HTMLElement {
     const webapp = Boolean((session && session.webapp) || this._webapp.checked);
     this._followNote.hidden = !webapp;
     this._followNote.textContent = webapp ? text.webappFollow : "";
+    this._art.hidden = webapp;
+    this._surahLine.hidden = webapp;
+    this._reciterLine.hidden = webapp;
+    this._mushafLine.hidden = webapp;
+    this._statePill.hidden = webapp;
     if (session) {
       const lang = integrationLanguage(this._hass);
       this._reciterLine.textContent = inLanguage(session.artist || "", lang);
@@ -784,19 +797,21 @@ class AlquranCloudCard extends HTMLElement {
   _renderTransport(text, state, webapp) {
     const features = (state && state.attributes && state.attributes.supported_features) || 0;
     const paused = state && state.state === "paused";
-    const canPause = !webapp && (features & PAUSE || features & PLAY);
-    this._previousButton.hidden = webapp;
-    this._nextButton.hidden = webapp;
-    this._previousButton.title = text.previous;
-    this._nextButton.title = text.next;
+    const canPause = features & PAUSE || features & PLAY;
+    this._previousButton.hidden = false;
+    this._nextButton.hidden = false;
+    this._previousButton.title = webapp ? text.trackPrevious : text.previous;
+    this._nextButton.title = webapp ? text.trackNext : text.next;
     const forward = text.dir === "rtl" ? "mdi:skip-previous" : "mdi:skip-next";
     const back = text.dir === "rtl" ? "mdi:skip-next" : "mdi:skip-previous";
     setIcon(this._previousButton, back);
     setIcon(this._nextButton, forward);
-    this._pauseButton.hidden = !canPause;
-    this._pauseButton.title = paused ? text.resume : text.pause;
-    setIcon(this._pauseButton, paused ? "mdi:play" : "mdi:pause");
-    this._transport.hidden = webapp && !canPause;
+    this._playTransport.hidden = !webapp;
+    this._playTransport.title = text.play;
+    this._pauseButton.hidden = webapp ? false : !canPause;
+    this._pauseButton.title = webapp ? text.pause : (paused ? text.resume : text.pause);
+    setIcon(this._pauseButton, webapp || !paused ? "mdi:pause" : "mdi:play");
+    this._transport.hidden = false;
   }
 
   _renderProgress(state, session) {
@@ -867,10 +882,23 @@ class AlquranCloudCard extends HTMLElement {
     if (!entity) return;
     const session = sessionFor(this._hass, entity);
     try {
-      if (action === "pause") {
-        const state = this._playerState();
-        const service = state && state.state === "paused" ? "media_play" : "media_pause";
+      if (action === "play" || action === "pause") {
+        const webapp = Boolean((session && session.webapp) || (this._webapp && this._webapp.checked));
+        let service = action === "play" ? "media_play" : "media_pause";
+        if (!webapp && action === "pause") {
+          const state = this._playerState();
+          service = state && state.state === "paused" ? "media_play" : "media_pause";
+        }
         await this._hass.callService("media_player", service, { entity_id: entity });
+        return;
+      }
+      const webapp = Boolean((session && session.webapp) || (this._webapp && this._webapp.checked));
+      if (webapp && (action === "next" || action === "previous")) {
+        await this._hass.callService(
+          "media_player",
+          action === "next" ? "media_next_track" : "media_previous_track",
+          { entity_id: entity }
+        );
         return;
       }
       if (session) {
