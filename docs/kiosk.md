@@ -91,6 +91,7 @@ The page loads three scripts, in order:
 `index.html` does not load `app.js` or `kiosk-lib.js` directly. Edit those, then rebuild:
 
 ```bash
+npm install
 npx esbuild custom_components/alquran_cloud/www/kiosk/js/kiosk-lib.js \
   --target=chrome53 \
   --outfile=custom_components/alquran_cloud/www/kiosk/js/kiosk-lib.compat.js

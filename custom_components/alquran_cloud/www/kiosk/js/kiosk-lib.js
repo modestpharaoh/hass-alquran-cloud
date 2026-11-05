@@ -129,6 +129,28 @@ function mediaKeyAction(event) {
   return '';
 }
 
+function oldTvBrowser(ua) {
+  const agent = ua == null ? ((typeof navigator !== 'undefined' && navigator.userAgent) || '') : String(ua);
+  const chrome = /Chrome\/(\d+)/.exec(agent);
+  const chromeMajor = chrome ? parseInt(chrome[1], 10) : 0;
+  if (/Web0S|webOS/i.test(agent)) return chromeMajor > 0 && chromeMajor < 80;
+  if (!/Smart-?TV|Tizen/i.test(agent)) return false;
+  const tizen = /Tizen\s+(\d+)(?:\.(\d+))?/i.exec(agent);
+  if (tizen) {
+    const major = parseInt(tizen[1], 10);
+    const minor = parseInt(tizen[2] || '0', 10);
+    return major < 6 || (major === 6 && minor < 5);
+  }
+  return chromeMajor === 0 || chromeMajor < 80;
+}
+
+function ayahCountWord(count) {
+  const last = Math.abs(Number(count) || 0) % 100;
+  if (last === 2) return 'آيتان';
+  if (last >= 3 && last <= 10) return 'آيات';
+  return 'آية';
+}
+
 function overlayBackKey(event) {
   if (!event || event.repeat) return false;
   const key = event.key || '';
@@ -230,6 +252,8 @@ const kioskLib = {
   resolvePlayback,
   mediaKeyAction,
   overlayBackKey,
+  oldTvBrowser,
+  ayahCountWord,
   compareReciterItems,
   escapeHtml,
   isCachedMedia,

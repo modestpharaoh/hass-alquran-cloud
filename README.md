@@ -154,7 +154,10 @@ Starting the integration also deletes leftover surah videos and ayah pictures. `
 ## Tests
 
 ```bash
-pytest tests/ -q
+python3 -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt
+npm install
+.venv/bin/python -m pytest tests/ -q
 ```
 
-Requires `pytest`, `pytest-asyncio`, `aiohttp`, and `voluptuous`. No Home Assistant install is required.
+`requirements-dev.txt` installs `pytest`, `pytest-asyncio`, `aiohttp`, and `voluptuous`. `npm install` installs the esbuild used to check the TV page’s Chrome 53 scripts. No Home Assistant install is required.

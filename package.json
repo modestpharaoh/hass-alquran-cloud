@@ -1,0 +1,7 @@
+{
+  "name": "hass-alquran-cloud",
+  "private": true,
+  "devDependencies": {
+    "esbuild": "0.25.10"
+  }
+}

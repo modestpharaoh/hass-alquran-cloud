@@ -170,21 +170,6 @@
       return t('cacheStatus', { count, mode, days: cacheExpiryDays });
     }
 
-    function oldTvBrowser() {
-      const ua = navigator.userAgent || '';
-      const chrome = /Chrome\/(\d+)/.exec(ua);
-      const chromeMajor = chrome ? parseInt(chrome[1], 10) : 0;
-      if (/Web0S|webOS/i.test(ua)) return chromeMajor > 0 && chromeMajor < 80;
-      if (!/Smart-?TV|Tizen/i.test(ua)) return false;
-      const tizen = /Tizen\s+(\d+)(?:\.(\d+))?/i.exec(ua);
-      if (tizen) {
-        const major = parseInt(tizen[1], 10);
-        const minor = parseInt(tizen[2] || '0', 10);
-        return major < 6 || (major === 6 && minor < 5);
-      }
-      return chromeMajor === 0 || chromeMajor < 80;
-    }
-
     async function registerMediaWorker() {
       if (!('serviceWorker' in navigator) || location.protocol === 'file:' || oldTvBrowser()) return false;
       const workerUrl = resolveAssetUrl(location.href, 'sw.js?v=3');
@@ -661,13 +646,6 @@
       const count = Number(surahData && surahData.numberOfAyahs);
       if (!count) return '';
       return `${count} ${t('ayahs')}`;
-    }
-
-    function ayahCountWord(count) {
-      const last = Math.abs(Number(count) || 0) % 100;
-      if (last === 2) return 'آيتان';
-      if (last >= 3 && last <= 10) return 'آيات';
-      return 'آية';
     }
 
     function ayahCountNode(count) {

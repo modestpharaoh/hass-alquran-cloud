@@ -60,17 +60,38 @@ check("xf86 back", back({ key: "XF86Back", keyCode: 0 }));
 check("backspace still deletes", !back({ key: "Backspace", keyCode: 8 }));
 check("held escape is ignored", !back({ key: "Escape", keyCode: 27, repeat: true }));
 check("arrow is not back", !back({ key: "ArrowLeft", keyCode: 37 }));
+check("webOS 4 is an old TV", lib.oldTvBrowser("Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 Chrome/53.0.2785.34") === true);
+check("webOS 22 stays modern", lib.oldTvBrowser("Mozilla/5.0 (Web0S) Chrome/94.0.4606.61") === false);
+check("Tizen 6.0 is an old TV", lib.oldTvBrowser("Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/537.36") === true);
+check("Tizen 6.5 stays modern", lib.oldTvBrowser("Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.5) AppleWebKit/537.36 Chrome/76.0") === false);
+check("Tizen 7 stays modern", lib.oldTvBrowser("Mozilla/5.0 (SMART-TV; Tizen 7.0) Chrome/94.0") === false);
+check("Samsung without Tizen is an old TV", lib.oldTvBrowser("Mozilla/5.0 (SMART-TV; Linux) AppleWebKit/537.36") === true);
+check("a desktop browser stays modern", lib.oldTvBrowser("Mozilla/5.0 Chrome/120.0.0.0 Safari/537.36") === false);
+check("seven ayahs", lib.ayahCountWord(7) === "آيات");
+check("two ayahs", lib.ayahCountWord(2) === "آيتان");
+check("two hundred six ayahs", lib.ayahCountWord(206) === "آيات");
+check("two hundred eighty six ayahs", lib.ayahCountWord(286) === "آية");
 """
 
+_JS = Path(__file__).resolve().parents[1] / "custom_components" / "alquran_cloud" / "www" / "kiosk" / "js"
 
-def test_kiosk_player_rules():
+
+def _run(script_path: Path) -> None:
     node = shutil.which("node")
     if node is None:
         pytest.skip("node is not installed")
     completed = subprocess.run(
-        [node, "-e", _SCRIPT, str(_LIB)],
+        [node, "-e", _SCRIPT, str(script_path)],
         check=False,
         capture_output=True,
         text=True,
     )
     assert completed.returncode == 0, completed.stderr or completed.stdout
+
+
+def test_kiosk_player_rules():
+    _run(_LIB)
+
+
+def test_kiosk_player_rules_on_chrome53_build():
+    _run(_JS / "kiosk-lib.compat.js")
