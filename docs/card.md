@@ -39,7 +39,7 @@ background_video: false
 | `webapp` | Opens the Quran web app on a TV instead of playing a joined MP3. |
 | `background_video` | Landscape clip behind the web app. Hidden unless `webapp` is on. Defaults to false. |
 
-Play calls `alquran_cloud.play` with those fields. Pause, resume, and volume use the media player’s own services when the player supports them. Next and previous call `alquran_cloud.next_surah` and `previous_surah`. Stop calls `alquran_cloud.stop`.
+Play calls `alquran_cloud.play` with those fields. Pause, resume, and volume use the media player’s own services when the player supports them. In audio mode, next and previous call `alquran_cloud.next_surah` and `previous_surah`. In web app mode they call `media_player.media_next_track` and `media_previous_track`. Stop calls `alquran_cloud.stop`.
 
 Reciters and surahs are loaded from the `media-source://alquran_cloud` catalog, the same tree as the media browser. Favorites saved in the integration options come first.
 

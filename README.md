@@ -53,7 +53,7 @@ Turn on **Web app**. Home Assistant opens `/api/alquran_cloud/kiosk/` in the TV 
 
 The player list in that mode contains only LG webOS, Samsung, and Android TV (`androidtv`, including Fire TV), in alphabetical order. Chromecast stays on the audio list. A Chromecast with Google TV can be used when that device is also set up as Android TV.
 
-The address uses the internal Home Assistant URL when one is set. `http://` is enough for the page. The page has no login, and it opens only from loopback or from a subnet on an enabled Home Assistant network adapter. **Also allow private addresses** opens it to other private LANs. **Extra trusted subnets** adds CIDRs such as `192.168.50.0/24`. A Docker bridge install whose only adapter is `172.17.0.0/16` needs one of those before a `192.168` TV can open the page. Audio and ayah pictures are loaded by the TV from `cdn.islamic.network`. Next and previous open the neighboring full surah in the browser again.
+The address uses the internal Home Assistant URL when one is set. `http://` is enough for the page. The page has no login, and it opens only from loopback or from a subnet on an enabled Home Assistant network adapter. **Also allow private addresses** opens it to other private LANs. **Extra trusted subnets** adds CIDRs such as `192.168.50.0/24`. A Docker bridge install whose only adapter is `172.17.0.0/16` needs one of those before a `192.168` TV can open the page. Audio and ayah pictures are loaded by the TV from `cdn.islamic.network`. The card’s next and previous buttons send `media_next_track` and `media_previous_track`. The page decides whether that step is an ayah or a surah. The `next_surah` and `previous_surah` actions still open the neighboring full surah.
 
 webOS 4 (firmware such as 04.64.00, Chromium 53) is supported by a downleveled copy of the player. See [Quran player](docs/kiosk.md).
 
@@ -147,7 +147,7 @@ Starting the integration also deletes leftover surah videos and ayah pictures. `
 - [ ] `background_video: true` opens the web app with the landscape clip playing. The default leaves it hidden.
 - [ ] `continue_surah: true` on a full surah opens with auto-next on and moves to the next surah. `auto_surah=false` leaves that button off and stops at the end.
 - [ ] `loop: true` turns the web app loop button on. Off leaves it off.
-- [ ] LG, Samsung, or Android TV opens the player on the requested reciter and ayah range. The card shows On the TV and does not move the ayah.
+- [ ] LG, Samsung, or Android TV opens the player on the requested reciter and ayah range. The card hides that surah and reciter, and its next and previous buttons send track commands.
 - [ ] A second audio play of the same reciter and range starts without building the file again.
 - [ ] webOS 4 shows the bismillah image, fills the surah, and plays audio after a remote key if the TV blocked autoplay.
 

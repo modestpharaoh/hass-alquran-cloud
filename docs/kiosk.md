@@ -42,18 +42,18 @@ Built by `build_kiosk_url`:
 | `reciter` | Al Quran Cloud edition id, such as `ar.alafasy` |
 | `speed` | `0.5`, `0.75`, `1`, `1.25`, `1.5`, `1.75`, or `2`. `1.0` is written as `1` |
 | `repeat` | 1–20 |
-| `auto_surah` | `true` turns on auto-next. Anything else, including a missing value, leaves it off |
-| `loop` | `true` turns on loop. Anything else leaves it off. With auto-next off, loop replays the opened surah or range. With auto-next on, loop wraps from surah 114 back to surah 1 |
-| `language` | `en` or `ar`, from the integration display language |
-| `background_video` | `true` plays the landscape clip. Missing or `false` pauses it and hides it |
+| `auto_surah` | `true` turns on auto-next. `false` turns it off. A missing value uses the saved choice, which starts off |
+| `loop` | `true` turns on loop. `false` turns it off. A missing value uses the saved choice, which starts off. With auto-next off, loop replays the opened surah or range. With auto-next on, loop wraps from surah 114 back to surah 1 |
+| `language` | `en` or `ar`. A missing value uses the saved choice, which starts as English |
+| `background_video` | `true` plays the landscape clip. `false` pauses it and hides it. A missing value uses the saved choice, which starts off |
 
-The auto-next and loop buttons take their on state from those parameters. A missing or `false` value leaves the button off. The page used to paint auto-next as on in the HTML even when `auto_surah=false`, so the control looked enabled while playback stopped at the end of the surah.
+A value in the address replaces the saved choice. `false` turns auto-next and loop off. The page used to paint auto-next as on in the HTML even when `auto_surah=false`, so the control looked enabled while playback stopped at the end of the surah.
 
 The player reads those values once at load. It does not report the current ayah back to Home Assistant.
 
 The browser stores the last surah, ayah range, reciter, speed, repeat, background, auto-next, loop, and language. A parameter in the address replaces the saved value and is written back, and the address is updated to match. Opening the page with no query restores the saved choices. Moving to another surah stores that surah. A launch that includes `surah` or `ayah` and omits `to_ayah` means the range runs to the end of the surah, which is how Home Assistant opens a full surah. Reset settings returns the saved choices to English, surah 1, ayah 1, Alafasy, speed 1, repeat 1, and turns auto-next, loop, and the background off. Favorites and the cache period reset with them. Downloaded audio is kept. An old TV still plays at 1×; a speed saved from the address is kept for a browser that can use it.
 
-The space bar toggles play and pause. It still types a space in a text field. Play, pause, and play/pause keys are honored when the TV browser delivers them: LG webOS sends 415 and 19, Samsung can register `MediaPlay`, `MediaPause`, and `MediaPlayPause`, and Android uses those keys plus the Media Session play and pause actions. A stop key pauses the recitation. Next and previous track keys move one ayah. Settings can switch those same keys to the next and previous surah. Rewind, fast-forward, and the arrow keys are left for the TV. Escape and the TV Back key close the surah, reciter, ayah range, repeat, and settings windows. Back still leaves the page when no window is open.
+The space bar toggles play and pause. It still types a space in a text field. Play, pause, and play/pause keys are honored when the TV browser delivers them: LG webOS sends 415 and 19, Samsung can register `MediaPlay`, `MediaPause`, and `MediaPlayPause`, and Android uses those keys plus the Media Session play and pause actions. A stop key pauses the recitation. Next and previous track keys move one ayah. Settings can switch those same keys to the next and previous surah, and reset returns that choice to the ayah. Rewind, fast-forward, and the arrow keys are left for the TV. Escape and the TV Back key close the surah, reciter, ayah range, repeat, and settings windows. Back still leaves the page when no window is open.
 
 ## What the page loads
 

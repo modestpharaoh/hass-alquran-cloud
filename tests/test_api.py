@@ -123,6 +123,14 @@ def test_arabic_ayah_count_word():
     assert arabic_ayah_word(83) == "آية"
     assert arabic_ayah_word(200) == "آية"
     assert arabic_ayah_word(206) == "آيات"
+    assert arabic_ayah_word(0) == "آية"
+    assert arabic_ayah_word(11) == "آية"
+    assert arabic_ayah_word(12) == "آية"
+    assert arabic_ayah_word(99) == "آية"
+    assert arabic_ayah_word(101) == "آية"
+    assert arabic_ayah_word(102) == "آيتان"
+    assert arabic_ayah_word(109) == "آيات"
+    assert arabic_ayah_word(110) == "آيات"
     assert arabic_ayah_word(286) == "آية"
     fatiha = Chapter(1, "Al-Faatiha", "سُورَةُ ٱلْفَاتِحَةِ", 7, "Meccan")
     baqara = Chapter(2, "Al-Baqara", "سُورَةُ البَقَرَةِ", 286, "Medinan")

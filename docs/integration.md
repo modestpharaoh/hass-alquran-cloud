@@ -56,7 +56,7 @@ The media browser is a separate path. It still resolves one public CDN MP3 per a
 
 ## Web app
 
-`session.py` never calls `prepare_playback` when `webapp` is set. It builds a kiosk URL and launches the TV browser. The session stores the title, the range, and the reciter. State text for the card is “On the TV”. There is no `media_position` and no ayah advance. The state listener returns immediately for these sessions, so the TV going idle does not end the session or start the next surah. Continue and loop are query parameters. The page owns them after it opens.
+`session.py` never calls `prepare_playback` when `webapp` is set. It builds a kiosk URL and launches the TV browser. The session stores the title, the range, and the reciter that were opened. The card hides those lines and shows a note that it does not track the ayah. There is no `media_position` and no ayah advance. The state listener returns immediately for these sessions, so the TV going idle does not end the session or start the next surah. Continue and loop are query parameters. The page owns them after it opens.
 
 `background_video` is sent as `background_video=true` or `background_video=false`. The default is false, so the landscape clip stays hidden until it is turned on. Joined audio ignores it.
 
@@ -64,7 +64,7 @@ The URL is `{internal-or-external}/api/alquran_cloud/kiosk/?…`. The internal U
 
 The page stays unauthenticated, and the view returns 403 unless the client is loopback or on an enabled Home Assistant adapter subnet. **Also allow private addresses** extends that to other private LANs. **Extra trusted subnets** adds an explicit CIDR list. A Docker bridge install whose only adapter is `172.17.0.0/16` needs one of those before a `192.168` TV can open the page. `network` is an `after_dependency` so the adapter list exists before the view is used.
 
-Next and previous do not step an ayah on the TV. They open the neighboring full surah in the browser again.
+The card’s web-app next and previous buttons call `media_next_track` and `media_previous_track`. The page decides whether that step is an ayah or a surah. The `next_surah` and `previous_surah` actions still open the neighboring full surah in the browser.
 
 ### Which TVs
 
