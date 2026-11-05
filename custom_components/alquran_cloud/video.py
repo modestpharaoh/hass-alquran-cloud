@@ -17,6 +17,7 @@ from aiohttp import ClientError, ClientSession, ClientTimeout, web
 from .const import (
     DEFAULT_CACHE_DAYS,
     DOMAIN,
+    arabic_ayah_word,
     ayah_audio_url,
     ayah_image_url,
     coerce_speed,
@@ -334,7 +335,7 @@ def surah_tags(reciter: Any, chapter: Any) -> SurahTags:
     place_en, place_ar = revelation_bilingual(getattr(chapter, "revelation_place", "") or "")
     comment = (
         f"{chapter.verses_count} ayahs · {place_en} · "
-        f"{arabic_indic(chapter.verses_count)} آيات · {place_ar}"
+        f"{arabic_indic(chapter.verses_count)} {arabic_ayah_word(chapter.verses_count)} · {place_ar}"
     )
     return SurahTags(
         title=title,

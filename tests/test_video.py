@@ -77,6 +77,16 @@ def test_surah_tags_and_back_to_back_cues():
     assert tags.album == "Madinah Mushaf · مصحف المدينة"
     assert "7 ayahs · Meccan" in tags.comment
     assert "٧ آيات · مكية" in tags.comment
+    long = surah_tags(
+        Reciter("ar.alafasy", "Alafasy", "مشاري العفاسي", ""),
+        Chapter(2, "Al-Baqara", "سُورَةُ البَقَرَةِ", 286, "Medinan"),
+    )
+    assert "٢٨٦ آية · مدنية" in long.comment
+    araf = surah_tags(
+        Reciter("ar.alafasy", "Alafasy", "مشاري العفاسي", ""),
+        Chapter(7, "Al-A'raaf", "سُورَةُ الأَعۡرَافِ", 206, "Meccan"),
+    )
+    assert "٢٠٦ آيات · مكية" in araf.comment
     cues = cues_from_durations([(1, 2.5), (2, 4.0)])
     assert cues[1].start == cues[0].end
 

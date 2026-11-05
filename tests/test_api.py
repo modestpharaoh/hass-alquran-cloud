@@ -12,7 +12,7 @@ from custom_components.alquran_cloud.api import (
     ayah_before,
     bitrate_from_audio_url,
 )
-from custom_components.alquran_cloud.const import ayah_audio_url, ayah_image_url
+from custom_components.alquran_cloud.const import arabic_ayah_word, ayah_audio_url, ayah_image_url
 
 
 class _Response:
@@ -114,3 +114,18 @@ async def test_fetch_catalog_and_ayah_audio():
         "https://cdn.islamic.network/quran/audio/128/ar.alafasy/8.mp3"
     )
     assert await api.bitrate_for("ar.alafasy") == 128
+
+
+def test_arabic_ayah_count_word():
+    assert arabic_ayah_word(1) == "آية"
+    assert arabic_ayah_word(2) == "آيتان"
+    assert arabic_ayah_word(7) == "آيات"
+    assert arabic_ayah_word(83) == "آية"
+    assert arabic_ayah_word(200) == "آية"
+    assert arabic_ayah_word(206) == "آيات"
+    assert arabic_ayah_word(286) == "آية"
+    fatiha = Chapter(1, "Al-Faatiha", "سُورَةُ ٱلْفَاتِحَةِ", 7, "Meccan")
+    baqara = Chapter(2, "Al-Baqara", "سُورَةُ البَقَرَةِ", 286, "Medinan")
+    assert fatiha.display_title("arabic") == "001 · سُورَةُ ٱلْفَاتِحَةِ · 7 آيات"
+    assert baqara.display_title("arabic") == "002 · سُورَةُ البَقَرَةِ · 286 آية"
+    assert fatiha.display_title() == "001 · Al-Faatiha · 7 ayahs"

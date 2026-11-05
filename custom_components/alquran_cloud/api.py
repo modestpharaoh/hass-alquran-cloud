@@ -9,7 +9,7 @@ from typing import Any
 
 from aiohttp import ClientError, ClientSession, ClientTimeout
 
-from .const import API_BASE, ayah_audio_url
+from .const import API_BASE, arabic_ayah_word, ayah_audio_url
 
 _LOGGER = logging.getLogger(__name__)
 _TIMEOUT = ClientTimeout(total=30)
@@ -55,7 +55,7 @@ class Chapter:
     def display_title(self, language: str = "english") -> str:
         """Return a short surah label."""
         name = self.name_ar if language == "arabic" else self.name_en
-        unit = "آية" if language == "arabic" else "ayahs"
+        unit = arabic_ayah_word(self.verses_count) if language == "arabic" else "ayahs"
         return f"{self.number:03d} · {name} · {self.verses_count} {unit}"
 
     def ayah_title(self, ayah: int, language: str = "english") -> str:

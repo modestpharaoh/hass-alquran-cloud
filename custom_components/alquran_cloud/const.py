@@ -108,6 +108,20 @@ def webapp_enabled(options: dict) -> bool:
     return bool(options.get("show_picture", DEFAULT_WEBAPP))
 
 
+def arabic_ayah_word(count: int) -> str:
+    """Return the Arabic counted form of آية for this number.
+
+    The form follows the last two digits: 2 is آيتان, 3–10 is آيات, and
+    every other ending, including 1 and 11–99, is آية.
+    """
+    last = abs(int(count)) % 100
+    if last == 2:
+        return "آيتان"
+    if 3 <= last <= 10:
+        return "آيات"
+    return "آية"
+
+
 def get_display_language(options: dict) -> str:
     """Return the configured display language."""
     value = options.get(CONF_DISPLAY_LANGUAGE, DEFAULT_DISPLAY_LANGUAGE)

@@ -251,13 +251,20 @@ function arabicIndic(number) {
   return String(number).replace(/[0-9]/g, (digit) => "٠١٢٣٤٥٦٧٨٩"[digit]);
 }
 
+function arabicAyahWord(count) {
+  const last = Math.abs(Number(count) || 0) % 100;
+  if (last === 2) return "آيتان";
+  if (last >= 3 && last <= 10) return "آيات";
+  return "آية";
+}
+
 function playbackLine(session, text, lang) {
   const title = inLanguage(session.title || "", lang);
   const start = Number(session.start_ayah);
   const end = Number(session.end_ayah);
   const names = title.replace(/^\d{1,3}\s*·\s*/, "");
   if (session.full_surah && Number.isFinite(end)) {
-    const unit = end === 1 ? text.ayah : text.ayahs;
+    const unit = lang === "ar" ? arabicAyahWord(end) : (end === 1 ? text.ayah : text.ayahs);
     const count = lang === "ar" ? arabicIndic(end) : String(end);
     const surah = title || session.verse_key || "";
     return `${surah} · ${count} ${unit}`;
