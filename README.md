@@ -1,10 +1,49 @@
+<a href="https://alquran.cloud/"><img src="custom_components/alquran_cloud/brand/icon.png" align="right" width="120" alt="Al Quran Cloud"></a>
+
 # Al Quran Cloud for Home Assistant
 
-Play [Al Quran Cloud](https://alquran.cloud/) on a Home Assistant media player, or hand a surah to a TV browser. The domain is `alquran_cloud`. Reciter ids are edition strings such as `ar.alafasy`.
+Put the passage you are working on onto a speaker or the living-room TV, then get on with the rest of the day. Pick a surah or a few ayahs, set how many times they repeat, and let Home Assistant start that recitation when you cook, drive, review homework, or sit with a child who is memorizing. The same passage can loop, or a full surah can move on by itself. A speaker plays one joined recording. An LG, Samsung, or Android TV opens the page and shows the ayah. This does not quiz anyone or keep a memorization score. It keeps the recitation playing on the device you already use.
+
+This project is an independent Home Assistant integration. It is not affiliated with, endorsed by, or maintained by [Al Quran Cloud](https://alquran.cloud/) or the [Islamic Network](https://islamic.network/). The mark at the top is theirs. Recitations, ayah pictures, and the catalog come from their public API and [CDN](https://alquran.cloud/cdn). Each reciter keeps the rights in their own recording.
+
+<p>
+  <a href="https://hacs.xyz/"><img src="docs/hacs-icon.png" alt="HACS icon" width="48" height="48"></a>
+  &nbsp;
+  <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=modestpharaoh&repository=hass-alquran-cloud&category=integration"><img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="HACS logo: open this repository in HACS"></a>
+</p>
+
+Play on a Home Assistant media player, including a Cast speaker, or hand a surah to a TV browser. The domain is `alquran_cloud`. Reciter ids are edition strings such as `ar.alafasy`.
 
 Audio mode downloads the ayah MP3s and joins them into one cached file. That file plays on any media player. The web app does not build an MP4. Home Assistant opens the bundled Quran player in an LG, Samsung, or Android TV browser and leaves playback there.
 
-Copy `custom_components/alquran_cloud` to `config/custom_components/alquran_cloud`. If an older `quran_com` folder is already installed, remove that folder and add this integration again.
+<br clear="right">
+
+## A passage on a schedule
+
+An automation can start the range you are reviewing. This one plays Al-Mulk 1–5 ten times on the kitchen speaker at 7:00. Change the player, the surah, and the count to the passage you or your child are on this week.
+
+```yaml
+automation:
+  - alias: Morning Quran passage
+    triggers:
+      - trigger: time
+        at: "07:00:00"
+    actions:
+      - action: alquran_cloud.play
+        target:
+          entity_id: media_player.kitchen
+        data:
+          reciter_id: ar.alafasy
+          surah: 67
+          start_ayah: 1
+          end_ayah: 5
+          repeat: 10
+          speed: 1
+          loop: false
+          webapp: false
+```
+
+For a TV, set `webapp: true` and target an LG, Samsung, or Android TV. `continue_surah: true` on a full surah opens the next surah when the current one ends. `loop: true` starts the same passage again.
 
 ## Docs
 
@@ -14,10 +53,25 @@ Copy `custom_components/alquran_cloud` to `config/custom_components/alquran_clou
 
 ## Install
 
+### HACS
+
+<a href="https://hacs.xyz/"><img src="docs/hacs-icon.png" alt="HACS icon" width="36" height="36"></a>
+<a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=modestpharaoh&repository=hass-alquran-cloud&category=integration"><img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="HACS logo: open this repository in HACS"></a>
+
+1. Open **HACS → Integrations → ⋮ → Custom repositories**.
+2. Add `https://github.com/modestpharaoh/hass-alquran-cloud` as category **Integration**.
+3. Install **Al Quran Cloud** and restart Home Assistant.
+4. Go to **Settings → Devices & services → Add integration → Al Quran Cloud**.
+
+### Copy the folder
+
 1. Copy `custom_components/alquran_cloud` into your Home Assistant `config/custom_components/alquran_cloud` folder.
 2. Restart Home Assistant.
 3. Add the **Al Quran Cloud** integration.
-4. Add a dashboard card:
+
+If an older `quran_com` folder is already installed, remove that folder and add this integration again.
+
+Add a dashboard card:
 
 ```yaml
 type: custom:alquran-cloud-card
