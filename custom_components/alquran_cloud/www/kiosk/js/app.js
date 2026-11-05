@@ -1562,7 +1562,7 @@
       try {
         const device = window.tizen && window.tizen.tvinputdevice;
         if (!device || !device.registerKey) return;
-        ['MediaPlay', 'MediaPause', 'MediaPlayPause', 'MediaStop', 'MediaTrackNext', 'MediaTrackPrevious'].forEach((name) => {
+        ['MediaPlay', 'MediaPause', 'MediaPlayPause', 'MediaStop', 'MediaTrackNext', 'MediaTrackPrevious', 'Back'].forEach((name) => {
           try { device.registerKey(name); } catch (err) { /* the key is already registered */ }
         });
       } catch (err) {
@@ -1597,6 +1597,14 @@
     registerTvMediaKeys();
     bindMediaSession();
     window.addEventListener('keydown', (event) => {
+      if (overlayBackKey(event)) {
+        if (document.body.classList.contains('modal-open')) {
+          event.preventDefault();
+          if (event.stopPropagation) event.stopPropagation();
+          closeModals();
+        }
+        return;
+      }
       if (handleTransportKey(event)) return;
       retryBlockedPlayback(event);
     });

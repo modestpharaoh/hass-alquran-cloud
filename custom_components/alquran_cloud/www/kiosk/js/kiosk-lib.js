@@ -129,6 +129,14 @@ function mediaKeyAction(event) {
   return '';
 }
 
+function overlayBackKey(event) {
+  if (!event || event.repeat) return false;
+  const key = event.key || '';
+  const code = Number(event.keyCode || event.which || 0);
+  return key === 'Escape' || key === 'Esc' || key === 'GoBack' || key === 'BrowserBack' || key === 'XF86Back' ||
+    code === 27 || code === 4 || code === 461 || code === 10009;
+}
+
 function compareReciterItems(a, b, favorites, language) {
   const favorite = (id) => Array.isArray(favorites) && favorites.includes(id);
   const arabicAyah = (item) => item.language === 'ar' && item.type !== 'surahbysurah';
@@ -221,6 +229,7 @@ const kioskLib = {
   languageFromSearch,
   resolvePlayback,
   mediaKeyAction,
+  overlayBackKey,
   compareReciterItems,
   escapeHtml,
   isCachedMedia,
