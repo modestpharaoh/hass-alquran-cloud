@@ -29,11 +29,15 @@ let cacheExpiryDays = 7;
 let language = "en";
 let favoriteReciters = [];
 let playbackNote = "";
+let storedSettings = {};
+let playbackReady = false;
 function readCacheSettings() {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return;
+    storedSettings = parsed;
     cacheExpiryDays = clampCacheDays(parsed.cacheExpiryDays, cacheExpiryDays);
     language = parsed.language === "ar" ? "ar" : "en";
     favoriteReciters = Array.isArray(parsed.favorites) ? parsed.favorites.filter((id) => safeEditionId(id, "")).slice(0, 100) : [];
@@ -42,11 +46,50 @@ function readCacheSettings() {
   }
 }
 function persistSettings() {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify({
-    cacheExpiryDays,
-    language,
-    favorites: favoriteReciters
-  }));
+  try {
+    const payload = {
+      cacheExpiryDays,
+      language,
+      favorites: favoriteReciters
+    };
+    if (playbackReady) {
+      payload.surah = currentSurah;
+      payload.ayah = startAyah;
+      payload.toAyah = endAyah || null;
+      payload.reciter = reciter;
+      payload.speed = rememberedSpeed;
+      payload.repeat = maxRepeatCount;
+      payload.autoSurah = autoNextSurah;
+      payload.loop = loopEnabled;
+      payload.background = bgVideoEnabled;
+    } else {
+      ["surah", "ayah", "toAyah", "reciter", "speed", "repeat", "autoSurah", "loop", "background"].forEach((key) => {
+        if (Object.prototype.hasOwnProperty.call(storedSettings, key)) payload[key] = storedSettings[key];
+      });
+    }
+    storedSettings = payload;
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(payload));
+    if (playbackReady) writePlaybackQuery();
+  } catch (err) {
+    console.warn("Settings write error:", err);
+  }
+}
+function writePlaybackQuery() {
+  const url = new URL(window.location.href);
+  const set = (name, value) => url.searchParams.set(name, String(value));
+  set("surah", currentSurah);
+  set("ayah", startAyah);
+  if (endAyah) set("to_ayah", endAyah);
+  else url.searchParams.delete("to_ayah");
+  set("reciter", reciter);
+  set("speed", rememberedSpeed);
+  set("repeat", maxRepeatCount);
+  set("auto_surah", autoNextSurah ? "true" : "false");
+  set("loop", loopEnabled ? "true" : "false");
+  set("background_video", bgVideoEnabled ? "true" : "false");
+  url.searchParams.delete("lang");
+  set("language", language);
+  history.replaceState(null, "", url.pathname + url.search + url.hash);
 }
 function openKioskDb() {
   return new Promise((resolve, reject) => {
@@ -199,37 +242,30 @@ const params = new URLSearchParams(window.location.search);
 function queryInt(name, fallback, min, max) {
   return boundedQueryInt(params, name, fallback, min, max);
 }
-let currentSurah = queryInt("surah", 1, 1, 114);
-let startAyah = queryInt("ayah", 1, 1, 286);
-let endAyah = params.has("to_ayah") ? queryInt("to_ayah", null, 1, 286) : null;
-const endSurah = params.has("to_surah") ? queryInt("to_surah", null, 1, 114) : null;
-let reciter = safeEditionId(params.get("reciter"), "ar.alafasy");
-let autoNextSurah = params.get("auto_surah") === "true";
-let loopEnabled = params.get("loop") === "true";
-const requestedSpeed = parseFloat(params.get("speed") || "1");
 const legacyTv = oldTvBrowser();
-let currentSpeed = !legacyTv && AVAILABLE_SPEEDS.includes(requestedSpeed) ? requestedSpeed : 1;
-let maxRepeatCount = queryInt("repeat", 1, 1, 20);
+const playback = resolvePlayback(params, storedSettings, legacyTv);
+let currentSurah = playback.surah;
+let startAyah = playback.ayah;
+let endAyah = playback.toAyah;
+const endSurah = params.has("to_surah") ? queryInt("to_surah", null, 1, 114) : null;
+let reciter = playback.reciter;
+let autoNextSurah = playback.autoSurah;
+let loopEnabled = playback.loop;
+let currentSpeed = playback.speed;
+let rememberedSpeed = playback.rememberedSpeed;
+let maxRepeatCount = playback.repeat;
 let currentRepeatCycle = 1;
-let bgVideoEnabled = params.get("background_video") === "true";
-const originSurah = currentSurah;
-const originStartAyah = startAyah;
-const originEndAyah = endAyah;
+let bgVideoEnabled = playback.background;
+let originSurah = currentSurah;
+let originStartAyah = startAyah;
+let originEndAyah = endAyah;
 function languageFromQuery() {
   return languageFromSearch(params);
 }
-function writeLanguageQuery(next) {
-  const url = new URL(window.location.href);
-  url.searchParams.delete("lang");
-  if (next) url.searchParams.set("language", next);
-  else url.searchParams.delete("language");
-  history.replaceState(null, "", url.pathname + url.search + url.hash);
-}
 const requestedLanguage = languageFromQuery();
-if (requestedLanguage) {
-  language = requestedLanguage;
-  persistSettings();
-}
+if (requestedLanguage) language = requestedLanguage;
+playbackReady = true;
+persistSettings();
 let surahData = null;
 let allSurahs = [];
 let recitersList = [];
@@ -281,7 +317,7 @@ const STRINGS = {
     clearCache: "Clear cache",
     save: "Save",
     resetSettings: "Reset settings",
-    resetHint: "Restores English, removes every favorite reciter, and sets the cache period back to 7 days. Downloaded audio is kept.",
+    resetHint: "Restores English, surah 1, Alafasy, speed 1, and repeat 1. Turns off auto-next, loop, and the background. Removes every favorite reciter and sets the cache period back to 7 days. Downloaded audio is kept.",
     settingsReset: "Settings restored.",
     repeatTitle: "Repeat the surah or selected range",
     repeatCountLabel: "Repeat count (1 to 20):",
@@ -350,7 +386,7 @@ const STRINGS = {
     clearCache: "\u0645\u0633\u062D \u0627\u0644\u062A\u062E\u0632\u064A\u0646 \u0627\u0644\u0645\u0624\u0642\u062A",
     save: "\u062D\u0641\u0638",
     resetSettings: "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0636\u0628\u0637",
-    resetHint: "\u064A\u0639\u064A\u062F \u0627\u0644\u0644\u063A\u0629 \u0627\u0644\u0625\u0646\u062C\u0644\u064A\u0632\u064A\u0629\u060C \u0648\u064A\u0632\u064A\u0644 \u0643\u0644 \u0627\u0644\u0642\u0631\u0627\u0621 \u0627\u0644\u0645\u0641\u0636\u0644\u064A\u0646\u060C \u0648\u064A\u0639\u064A\u062F \u0645\u062F\u0629 \u0627\u0644\u062A\u062E\u0632\u064A\u0646 \u0625\u0644\u0649 7 \u0623\u064A\u0627\u0645. \u0627\u0644\u0645\u0644\u0641\u0627\u062A \u0627\u0644\u0645\u062D\u0641\u0648\u0638\u0629 \u062A\u0628\u0642\u0649.",
+    resetHint: "\u064A\u0639\u064A\u062F \u0627\u0644\u0625\u0646\u062C\u0644\u064A\u0632\u064A\u0629\u060C \u0648\u0627\u0644\u0633\u0648\u0631\u0629 1\u060C \u0648\u0627\u0644\u0642\u0627\u0631\u0626 \u0627\u0644\u0639\u0641\u0627\u0633\u064A\u060C \u0648\u0627\u0644\u0633\u0631\u0639\u0629 1\u060C \u0648\u0627\u0644\u062A\u0643\u0631\u0627\u0631 1\u060C \u0648\u064A\u0648\u0642\u0641 \u0627\u0644\u062A\u0627\u0644\u064A \u0627\u0644\u062A\u0644\u0642\u0627\u0626\u064A \u0648\u0627\u0644\u0625\u0639\u0627\u062F\u0629 \u0648\u0627\u0644\u062E\u0644\u0641\u064A\u0629. \u064A\u0632\u064A\u0644 \u0643\u0644 \u0627\u0644\u0642\u0631\u0627\u0621 \u0627\u0644\u0645\u0641\u0636\u0644\u064A\u0646 \u0648\u064A\u0639\u064A\u062F \u0645\u062F\u0629 \u0627\u0644\u062A\u062E\u0632\u064A\u0646 \u0625\u0644\u0649 7 \u0623\u064A\u0627\u0645. \u0627\u0644\u0645\u0644\u0641\u0627\u062A \u0627\u0644\u0645\u062D\u0641\u0648\u0638\u0629 \u062A\u0628\u0642\u0649.",
     settingsReset: "\u062A\u0645\u062A \u0627\u0633\u062A\u0639\u0627\u062F\u0629 \u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A.",
     repeatTitle: "\u062A\u0643\u0631\u0627\u0631 \u0627\u0644\u0633\u0648\u0631\u0629 \u0623\u0648 \u0627\u0644\u0646\u0637\u0627\u0642 \u0627\u0644\u0645\u062D\u062F\u062F",
     repeatCountLabel: "\u0639\u062F\u062F \u0645\u0631\u0627\u062A \u0627\u0644\u062A\u0643\u0631\u0627\u0631 (1 \u0625\u0644\u0649 20):",
@@ -417,6 +453,12 @@ function updatePlayButton() {
   setIconShown(btnPlayPause.querySelector(".ico-play"), !continuingPlayback);
   setIconShown(btnPlayPause.querySelector(".ico-pause"), continuingPlayback);
   btnPlayPause.classList.toggle("active", continuingPlayback);
+  if (navigator.mediaSession) {
+    try {
+      navigator.mediaSession.playbackState = continuingPlayback ? "playing" : "paused";
+    } catch (err) {
+    }
+  }
 }
 function applyPlaybackRate() {
   if (legacyTv) return;
@@ -715,7 +757,9 @@ btnSpeedToggle.onclick = () => {
   let idx = AVAILABLE_SPEEDS.indexOf(currentSpeed);
   idx = (idx + 1) % AVAILABLE_SPEEDS.length;
   currentSpeed = AVAILABLE_SPEEDS[idx];
+  rememberedSpeed = currentSpeed;
   updateSpeedUI();
+  persistSettings();
 };
 function loadRecitersWithCache() {
   return __async(this, null, function* () {
@@ -933,6 +977,7 @@ function playBismillah() {
 }
 function loadSurah(surahNum, targetAyah = 1) {
   return __async(this, null, function* () {
+    persistSettings();
     const token = ++loadToken;
     const edition = safeEditionId(reciter, "ar.alafasy");
     playbackNote = "";
@@ -1113,16 +1158,19 @@ function applyRepeatCount() {
   maxRepeatCount = Math.min(20, Math.max(1, val));
   currentRepeatCycle = 1;
   updateRepeatUI();
+  persistSettings();
   closeModals();
 }
-btnPlayPause.onclick = () => {
-  if (continuingPlayback) {
-    continuingPlayback = false;
-    needsGesture = false;
+function pausePlayback() {
+  continuingPlayback = false;
+  needsGesture = false;
+  try {
     audio.pause();
-    updatePlayButton();
-    return;
+  } catch (err) {
   }
+  updatePlayButton();
+}
+function startPlayback() {
   if (needsGesture || !audio.src) {
     retryBlockedPlayback();
     return;
@@ -1138,7 +1186,12 @@ btnPlayPause.onclick = () => {
       updatePlayButton();
     });
   }
-};
+}
+function togglePlayback() {
+  if (continuingPlayback) pausePlayback();
+  else startPlayback();
+}
+btnPlayPause.onclick = togglePlayback;
 document.getElementById("btn-next-ayah").onclick = () => {
   if (surahAudioMode) {
     if (surahData && currentAyahIndex + 1 < surahData.ayahs.length) {
@@ -1202,18 +1255,20 @@ document.getElementById("btn-prev-surah").onclick = () => {
 btnToggleBg.onclick = () => {
   bgVideoEnabled = !bgVideoEnabled;
   applyBackground();
+  persistSettings();
 };
 btnAutoSurah.onclick = () => {
   autoNextSurah = !autoNextSurah;
   updateAutoButton();
+  persistSettings();
 };
 btnLoop.onclick = () => {
   loopEnabled = !loopEnabled;
   updateLoopButton();
+  persistSettings();
 };
 document.getElementById("btn-language").onclick = () => {
   language = language === "en" ? "ar" : "en";
-  writeLanguageQuery(language);
   persistSettings();
   applyLanguage();
 };
@@ -1247,10 +1302,31 @@ document.getElementById("btn-reset-settings").onclick = () => __async(null, null
   language = "en";
   favoriteReciters = [];
   cacheExpiryDays = 7;
-  writeLanguageQuery(null);
+  currentSurah = 1;
+  startAyah = 1;
+  endAyah = null;
+  reciter = "ar.alafasy";
+  currentSpeed = 1;
+  rememberedSpeed = 1;
+  maxRepeatCount = 1;
+  currentRepeatCycle = 1;
+  autoNextSurah = false;
+  loopEnabled = false;
+  bgVideoEnabled = false;
+  originSurah = 1;
+  originStartAyah = 1;
+  originEndAyah = null;
   document.getElementById("cache-days-input").value = cacheExpiryDays;
+  updateSpeedUI();
+  updateRepeatUI();
+  updateRangeUI();
+  updateAutoButton();
+  updateLoopButton();
+  applyBackground();
+  updateReciterLabel();
   yield syncCacheSettings();
   applyLanguage();
+  loadSurah(currentSurah, startAyah);
   document.getElementById("cache-status").textContent = "".concat(t("settingsReset"), " ").concat(yield cacheStatusText());
 });
 document.getElementById("btn-open-reciters").onclick = () => {
@@ -1289,7 +1365,65 @@ function resetIdle() {
 window.onmousemove = resetIdle;
 window.onclick = resetIdle;
 window.addEventListener("click", retryBlockedPlayback);
-window.addEventListener("keydown", retryBlockedPlayback);
+let lastTransportAt = 0;
+function acceptTransport() {
+  const now = Date.now();
+  if (now - lastTransportAt < 350) return false;
+  lastTransportAt = now;
+  return true;
+}
+function handleTransportKey(event) {
+  const action = mediaKeyAction(event);
+  if (!action) return false;
+  event.preventDefault();
+  if (!acceptTransport()) return true;
+  if (action === "pause") {
+    if (continuingPlayback) pausePlayback();
+  } else if (action === "play") {
+    if (!continuingPlayback) startPlayback();
+  } else {
+    togglePlayback();
+  }
+  return true;
+}
+function registerTvMediaKeys() {
+  try {
+    const device = window.tizen && window.tizen.tvinputdevice;
+    if (!device || !device.registerKey) return;
+    ["MediaPlay", "MediaPause", "MediaPlayPause", "MediaStop"].forEach((name) => {
+      try {
+        device.registerKey(name);
+      } catch (err) {
+      }
+    });
+  } catch (err) {
+    console.warn("TV media keys were not registered", err);
+  }
+}
+function bindMediaSession() {
+  const session = navigator.mediaSession;
+  if (!session || !session.setActionHandler) return;
+  const bind = (name, fn) => {
+    try {
+      session.setActionHandler(name, fn);
+    } catch (err) {
+    }
+  };
+  bind("play", () => {
+    if (continuingPlayback || !acceptTransport()) return;
+    startPlayback();
+  });
+  bind("pause", () => {
+    if (!continuingPlayback || !acceptTransport()) return;
+    pausePlayback();
+  });
+}
+registerTvMediaKeys();
+bindMediaSession();
+window.addEventListener("keydown", (event) => {
+  if (handleTransportKey(event)) return;
+  retryBlockedPlayback(event);
+});
 (function init() {
   return __async(this, null, function* () {
     applyLanguage();

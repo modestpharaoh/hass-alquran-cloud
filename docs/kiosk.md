@@ -51,6 +51,10 @@ The auto-next and loop buttons take their on state from those parameters. A miss
 
 The player reads those values once at load. It does not report the current ayah back to Home Assistant.
 
+The browser stores the last surah, ayah range, reciter, speed, repeat, background, auto-next, loop, and language. A parameter in the address replaces the saved value and is written back, and the address is updated to match. Opening the page with no query restores the saved choices. Moving to another surah stores that surah. A launch that includes `surah` or `ayah` and omits `to_ayah` means the range runs to the end of the surah, which is how Home Assistant opens a full surah. Reset settings returns the saved choices to English, surah 1, ayah 1, Alafasy, speed 1, repeat 1, and turns auto-next, loop, and the background off. Favorites and the cache period reset with them. Downloaded audio is kept. An old TV still plays at 1×; a speed saved from the address is kept for a browser that can use it.
+
+The space bar toggles play and pause. It still types a space in a text field. Play, pause, and play/pause keys are honored when the TV browser delivers them: LG webOS sends 415 and 19, Samsung can register `MediaPlay`, `MediaPause`, and `MediaPlayPause`, and Android uses those keys plus the Media Session play and pause actions. A stop key pauses the recitation.
+
 ## What the page loads
 
 Surah text, ayah lists, and reciters come from `https://api.alquran.cloud`. Ayah audio and ayah images come from `https://cdn.islamic.network`. Those hosts are HTTPS. The Home Assistant page itself may be HTTP on the LAN. The CDN does not send CORS headers. An `<audio>` or `<img>` element can still load those URLs. A `fetch()` from a service worker cannot read them, and a `no-cors` response is opaque.

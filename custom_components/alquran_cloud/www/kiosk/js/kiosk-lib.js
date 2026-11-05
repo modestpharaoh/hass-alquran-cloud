@@ -48,6 +48,85 @@ function languageFromSearch(params) {
   return null;
 }
 
+const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+
+function clampStoredInt(value, fallback, min, max) {
+  const number = parseInt(value, 10);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(max, Math.max(min, number));
+}
+
+function matchedSpeed(value) {
+  const number = Number(value);
+  for (let i = 0; i < PLAYBACK_SPEEDS.length; i++) {
+    if (Math.abs(PLAYBACK_SPEEDS[i] - number) < 1e-6) return PLAYBACK_SPEEDS[i];
+  }
+  return null;
+}
+
+function playbackFromStored(stored) {
+  const source = stored && typeof stored === 'object' ? stored : {};
+  const toRaw = source.toAyah;
+  const toAyah = toRaw == null || toRaw === '' ? null : clampStoredInt(toRaw, null, 1, 286);
+  return {
+    surah: clampStoredInt(source.surah, 1, 1, 114),
+    ayah: clampStoredInt(source.ayah, 1, 1, 286),
+    toAyah,
+    reciter: safeEditionId(source.reciter, 'ar.alafasy'),
+    speed: matchedSpeed(source.speed) || 1,
+    repeat: clampStoredInt(source.repeat, 1, 1, 20),
+    autoSurah: source.autoSurah === true,
+    loop: source.loop === true,
+    background: source.background === true
+  };
+}
+
+function queryFlag(params, name, fallback) {
+  if (!params || !params.has(name)) return fallback;
+  return params.get(name) === 'true';
+}
+
+function resolvePlayback(params, stored, legacyTv) {
+  const saved = playbackFromStored(stored);
+  const surah = boundedQueryInt(params, 'surah', saved.surah, 1, 114);
+  const ayah = boundedQueryInt(params, 'ayah', saved.ayah, 1, 286);
+  let toAyah = saved.toAyah;
+  if (params.has('to_ayah')) toAyah = boundedQueryInt(params, 'to_ayah', null, 1, 286);
+  else if (params.has('surah') || params.has('ayah')) toAyah = null;
+  if (toAyah != null && toAyah < ayah) toAyah = null;
+  const requested = params.has('speed') ? matchedSpeed(params.get('speed')) : null;
+  const rememberedSpeed = requested || saved.speed;
+  return {
+    surah,
+    ayah,
+    toAyah,
+    reciter: params.has('reciter') ? safeEditionId(params.get('reciter'), saved.reciter) : saved.reciter,
+    speed: legacyTv ? 1 : rememberedSpeed,
+    rememberedSpeed,
+    repeat: boundedQueryInt(params, 'repeat', saved.repeat, 1, 20),
+    autoSurah: queryFlag(params, 'auto_surah', saved.autoSurah),
+    loop: queryFlag(params, 'loop', saved.loop),
+    background: queryFlag(params, 'background_video', saved.background)
+  };
+}
+
+function mediaKeyAction(event) {
+  if (!event || event.repeat) return '';
+  const target = event.target;
+  const tag = target && target.tagName;
+  const typing = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (target && target.isContentEditable);
+  const key = event.key || '';
+  const code = Number(event.keyCode || event.which || 0);
+  const space = key === ' ' || key === 'Spacebar' || code === 32;
+  if (typing && space) return '';
+  if (space || key === 'MediaPlayPause' || key === 'MediaPlay' || code === 179 || code === 415 || code === 10252) {
+    return 'toggle';
+  }
+  if (key === 'MediaPause' || key === 'MediaStop' || code === 19 || code === 127 || code === 413) return 'pause';
+  if (code === 126) return 'play';
+  return '';
+}
+
 function compareReciterItems(a, b, favorites, language) {
   const favorite = (id) => Array.isArray(favorites) && favorites.includes(id);
   const arabicAyah = (item) => item.language === 'ar' && item.type !== 'surahbysurah';
@@ -138,6 +217,8 @@ const kioskLib = {
   clampCacheDays,
   boundedQueryInt,
   languageFromSearch,
+  resolvePlayback,
+  mediaKeyAction,
   compareReciterItems,
   escapeHtml,
   isCachedMedia,
