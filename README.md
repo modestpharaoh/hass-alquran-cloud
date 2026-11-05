@@ -1,4 +1,4 @@
-<a href="https://alquran.cloud/"><img src="custom_components/alquran_cloud/brand/icon.png" align="right" width="120" alt="Al Quran Cloud"></a>
+<a href="https://alquran.cloud/"><img src="icon.png" align="right" width="120" alt="Al Quran Cloud"></a>
 
 # Al Quran Cloud for Home Assistant
 
