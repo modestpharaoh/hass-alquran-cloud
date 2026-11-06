@@ -62,11 +62,10 @@ async def test_async_setup_registers_card_and_view():
     assert "1.75" in card
     assert "/alquran_cloud_brand/icon.svg" in card
     assert "Choose an LG, Samsung, or Android TV." in card
-    assert "media_next_track" in card
-    assert "media_previous_track" in card
-    assert "trackNext" in card
-    assert "trackPrevious" in card
-    assert "Home Assistant does not track the ayah on the TV." in card
+    assert "next_ayah" in card
+    assert "previous_surah" in card
+    assert "The six buttons reach the page on every TV." in card
+    assert "These lines are the last report from the TV." in card
     assert any(item.url_path == "/alquran_cloud_brand" for item in paths)
     assert (Path(paths[0].path) / "kiosk" / "index.html").is_file()
     views = [call.args[0] for call in hass.http.register_view.call_args_list]

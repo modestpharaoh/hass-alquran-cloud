@@ -11,7 +11,7 @@ Home Assistant integration, domain `alquran_cloud`. Full guide: AGENTS.md. Desig
 - Edit kiosk `app.js` and `kiosk-lib.js`, then rebuild both `.compat.js` files with esbuild `--target=chrome53`. `index.html` loads the compat files.
 - Old webOS and Samsung sets before Tizen 6.5 use stills and 1×. Do not bind arrow keys to ayah or surah movement.
 - Arabic counts: last two digits, 2 is آيتان, 3–10 is آيات, otherwise آية. Keep Python, the kiosk, and the card together.
-- Web app card next/previous call `media_next_track` and `media_previous_track`. Audio mode calls `next_surah` and `previous_surah`.
+- Web app play, pause, previous surah, previous ayah, next ayah, and next surah call `alquran_cloud.transport` on every TV. Sync calls `transport` with `report`. Audio mode calls `next_surah` and `previous_surah`.
 - Kiosk access uses `request.remote` only. Home Assistant is `request.app["hass"]`.
 - Do not open the landscape clip, stills, font, brand images, or doc screenshots unless asked.
 - Commit only when the user asks. Bump `manifest.json` only for a user-facing change.

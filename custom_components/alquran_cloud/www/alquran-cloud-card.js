@@ -22,8 +22,12 @@ const STRINGS = {
     continueSurah: "Continue to the next surah",
     loop: "Loop",
     webapp: "Web app",
-    webappHelp: "Opens the Quran web app in the TV browser. Home Assistant does not follow the ayah after that.",
-    webappFollow: "Home Assistant does not track the ayah on the TV. This card can play, pause, and send next or previous. The TV setting chooses an ayah or a surah.",
+    webappHelp: "Opens the Quran web app in the TV browser. The six buttons reach the page on every TV. A remote’s play, pause, and track keys work on Android TV and often do not arrive on LG webOS or Samsung.",
+    webappFollow: "These lines are the last report from the TV. Sync asks the page again.",
+    pageSilent: "The page did not answer.",
+    sync: "Sync",
+    previousAyah: "Previous ayah",
+    nextAyah: "Next ayah",
     openingNext: "Opening the next surah…",
     openingPrevious: "Opening the previous surah…",
     background: "Background video",
@@ -34,8 +38,6 @@ const STRINGS = {
     resume: "Resume",
     previous: "Previous surah",
     next: "Next surah",
-    trackPrevious: "Previous",
-    trackNext: "Next",
     stop: "Stop",
     idle: "Ready",
     error: "Could not load the catalog",
@@ -60,8 +62,12 @@ const STRINGS = {
     continueSurah: "متابعة السورة التالية",
     loop: "إعادة التشغيل",
     webapp: "تطبيق الويب",
-    webappHelp: "يفتح تطبيق القرآن في متصفح التلفاز. هوم أسيستنت لا يتابع الآية بعد ذلك.",
-    webappFollow: "هوم أسيستنت لا يتابع الآية على التلفاز. هذه البطاقة تستطيع التشغيل والإيقاف وإرسال التالي أو السابق. إعداد التلفاز يختار الآية أو السورة.",
+    webappHelp: "يفتح تطبيق القرآن في متصفح التلفاز. الأزرار الستة تصل إلى الصفحة على كل تلفاز. مفاتيح التشغيل والإيقاف والمسار في جهاز التحكم تعمل على Android TV وغالباً لا تصل على LG webOS أو Samsung.",
+    webappFollow: "هذه السطور آخر ما أبلغ به التلفاز. التحديث يسأل الصفحة من جديد.",
+    pageSilent: "الصفحة لم ترد.",
+    sync: "تحديث",
+    previousAyah: "الآية السابقة",
+    nextAyah: "الآية التالية",
     openingNext: "جارٍ فتح السورة التالية…",
     openingPrevious: "جارٍ فتح السورة السابقة…",
     background: "فيديو الخلفية",
@@ -72,8 +78,6 @@ const STRINGS = {
     resume: "استئناف",
     previous: "السورة السابقة",
     next: "السورة التالية",
-    trackPrevious: "السابق",
-    trackNext: "التالي",
     stop: "إيقاف",
     idle: "جاهز",
     error: "تعذر تحميل القائمة",
@@ -288,6 +292,7 @@ const STYLE = `
   .header img, .header ha-icon { width: 32px; height: 32px; border-radius: 50%; flex: 0 0 auto; }
   .header .name { font-size: 1.12rem; font-weight: 650; color: var(--primary-text-color); }
   .stage {
+    position: relative;
     margin: 0 16px 4px;
     padding: 18px 16px 16px;
     border-radius: 18px;
@@ -298,6 +303,7 @@ const STYLE = `
       linear-gradient(180deg, #143024 0%, #0c1c14 100%);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
   }
+  .stage.webapp { padding-top: 52px; }
   .art {
     width: 76px; height: 76px; border-radius: 50%; margin: 0 auto 10px; display: block;
     background: rgba(255, 255, 255, 0.08);
@@ -307,8 +313,24 @@ const STYLE = `
   .surah-line { font-size: 1.12rem; font-weight: 650; line-height: 1.35; }
   .reciter-line, .mushaf-line { margin-top: 4px; font-size: 0.92rem; line-height: 1.35; opacity: 0.9; }
   .state-pill {
-    display: inline-block; margin-top: 8px; padding: 2px 10px; border-radius: 999px;
-    font-size: 0.75rem; letter-spacing: 0.04em; background: rgba(255, 255, 255, 0.16);
+    display: inline-block; margin-top: 8px; padding: 3px 12px; border-radius: 999px;
+    font-size: 0.75rem; font-weight: 650; letter-spacing: 0.04em;
+    background: rgba(255, 255, 255, 0.16);
+  }
+  .state-pill.live { background: #026634; color: #ffffff; }
+  .state-pill.silent { background: #b00020; color: #ffffff; }
+  .stage > button.sync {
+    position: absolute; top: 10px; inset-inline-end: 10px; z-index: 1;
+    width: 40px; height: 40px; padding: 0; border: none; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.16); color: #f6fff8; cursor: pointer;
+  }
+  .stage > button.sync:hover {
+    background: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.28);
+  }
+  .stage > button.sync:active,
+  .stage > button.sync.pressed {
+    background: #ffffff; color: #0c1c14;
   }
   .follow-note {
     margin: 10px auto 0; max-width: 36em; font-size: 0.84rem; line-height: 1.4; opacity: 0.92;
@@ -319,13 +341,13 @@ const STYLE = `
   .progress .time { min-width: 2.4em; font-size: 0.75rem; font-variant-numeric: tabular-nums; opacity: 0.9; }
   .progress .track { flex: 1; height: 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.22); overflow: hidden; }
   .progress .fill { height: 100%; width: 0%; border-radius: 999px; background: #7dcea0; }
-  .transport { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 14px; }
+  .transport { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; }
   .transport button {
-    flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: none; border-radius: 50%;
+    flex: 0 0 40px; width: 40px; height: 40px; padding: 0; border: none; border-radius: 50%;
     background: rgba(255, 255, 255, 0.16); color: #f6fff8; cursor: pointer;
     transition: background 80ms ease, color 80ms ease, box-shadow 80ms ease, transform 80ms ease;
   }
-  .transport button.pause { flex-basis: 52px; width: 52px; height: 52px; background: #f6fff8; color: #0c1c14; }
+  .transport button.pause { flex-basis: 48px; width: 48px; height: 48px; background: #f6fff8; color: #0c1c14; }
   .transport button:hover {
     background: rgba(255, 255, 255, 0.4);
     box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.28);
@@ -416,6 +438,10 @@ function showPress(button) {
     button.classList.add("pressed");
     window.setTimeout(() => button.classList.remove("pressed"), 320);
   });
+}
+
+function webappSelected(card, session) {
+  return Boolean((session && session.webapp) || (card._webapp && card._webapp.checked));
 }
 
 function iconButton(className, iconName) {
@@ -522,15 +548,31 @@ class AlquranCloudCard extends HTMLElement {
     this._transport = document.createElement("div");
     this._transport.className = "transport";
     this._previousButton = iconButton("jump", "mdi:skip-previous");
+    this._previousAyahButton = iconButton("jump", "mdi:menu-left");
     this._pauseButton = iconButton("pause", "mdi:pause");
+    this._nextAyahButton = iconButton("jump", "mdi:menu-right");
     this._nextButton = iconButton("jump", "mdi:skip-next");
     this._playTransport = iconButton("pause", "mdi:play");
     this._playTransport.hidden = true;
+    this._previousAyahButton.hidden = true;
+    this._nextAyahButton.hidden = true;
     this._playTransport.addEventListener("click", () => this._transportAction("play"));
-    this._previousButton.addEventListener("click", () => this._transportAction("previous"));
+    this._previousButton.addEventListener("click", () => this._step("previous"));
+    this._previousAyahButton.addEventListener("click", () => this._transportAction("previous_ayah"));
     this._pauseButton.addEventListener("click", () => this._transportAction("pause"));
-    this._nextButton.addEventListener("click", () => this._transportAction("next"));
-    this._transport.append(this._previousButton, this._playTransport, this._pauseButton, this._nextButton);
+    this._nextAyahButton.addEventListener("click", () => this._transportAction("next_ayah"));
+    this._nextButton.addEventListener("click", () => this._step("next"));
+    this._syncButton = iconButton("sync", "mdi:sync");
+    this._syncButton.hidden = true;
+    this._syncButton.addEventListener("click", () => this._sync());
+    this._transport.append(
+      this._previousButton,
+      this._previousAyahButton,
+      this._playTransport,
+      this._pauseButton,
+      this._nextAyahButton,
+      this._nextButton
+    );
     this._art = brandImage("art");
     stage.append(
       this._art,
@@ -540,7 +582,8 @@ class AlquranCloudCard extends HTMLElement {
       this._statePill,
       this._followNote,
       progress,
-      this._transport
+      this._transport,
+      this._syncButton
     );
 
     const body = document.createElement("div");
@@ -794,16 +837,29 @@ class AlquranCloudCard extends HTMLElement {
     this._followNote.hidden = !webapp;
     this._followNote.textContent = webapp ? text.webappFollow : "";
     this._art.hidden = webapp;
-    this._surahLine.hidden = webapp;
-    this._reciterLine.hidden = webapp;
+    this._surahLine.hidden = false;
+    this._reciterLine.hidden = false;
     this._mushafLine.hidden = webapp;
-    this._statePill.hidden = webapp;
+    this._statePill.hidden = false;
+    if (session && webapp && Number(session.report_seq) > (this._syncSeq || 0)) {
+      this._syncSeq = Number(session.report_seq);
+      if (this._syncTimer) {
+        window.clearTimeout(this._syncTimer);
+        this._syncTimer = null;
+      }
+      if (this._status.textContent === text.pageSilent) this._status.textContent = "";
+    }
+    this._paintSessionPill(text, session, webapp);
     if (session) {
       const lang = integrationLanguage(this._hass);
       this._reciterLine.textContent = inLanguage(session.artist || "", lang);
       this._mushafLine.textContent = inLanguage(session.album || (session.webapp ? text.mushaf : ""), lang);
       this._statePill.textContent = session.webapp
-        ? text.onTv
+        ? session.live
+          ? session.playing
+            ? text.playing
+            : text.paused
+          : text.onTv
         : state && state.state === "paused"
           ? text.paused
           : text.playing;
@@ -845,20 +901,43 @@ class AlquranCloudCard extends HTMLElement {
     this._progressTimer = null;
   }
 
+  _paintSessionPill(text, session, webapp) {
+    if (!this._statePill) return;
+    this._statePill.className = "state-pill";
+    if (!webapp || !session || !session.webapp) return;
+    const silent = (this._status && this._status.textContent === text.pageSilent) || !session.live;
+    this._statePill.className = silent ? "state-pill silent" : "state-pill live";
+  }
+
   _renderTransport(text, state, webapp) {
     const features = (state && state.attributes && state.attributes.supported_features) || 0;
     const paused = state && state.state === "paused";
     const canPause = features & PAUSE || features & PLAY;
+    const rtl = text.dir === "rtl";
     this._previousButton.hidden = false;
     this._nextButton.hidden = false;
-    this._previousButton.title = webapp ? text.trackPrevious : text.previous;
-    this._nextButton.title = webapp ? text.trackNext : text.next;
-    const forward = text.dir === "rtl" ? "mdi:skip-previous" : "mdi:skip-next";
-    const back = text.dir === "rtl" ? "mdi:skip-next" : "mdi:skip-previous";
-    setIcon(this._previousButton, back);
-    setIcon(this._nextButton, forward);
+    this._previousButton.title = text.previous;
+    this._nextButton.title = text.next;
+    setIcon(this._previousButton, rtl ? "mdi:skip-next" : "mdi:skip-previous");
+    setIcon(this._nextButton, rtl ? "mdi:skip-previous" : "mdi:skip-next");
+    if (this._previousAyahButton) {
+      this._previousAyahButton.hidden = !webapp;
+      this._previousAyahButton.title = text.previousAyah;
+      setIcon(this._previousAyahButton, rtl ? "mdi:menu-right" : "mdi:menu-left");
+    }
+    if (this._nextAyahButton) {
+      this._nextAyahButton.hidden = !webapp;
+      this._nextAyahButton.title = text.nextAyah;
+      setIcon(this._nextAyahButton, rtl ? "mdi:menu-left" : "mdi:menu-right");
+    }
     this._playTransport.hidden = !webapp;
     this._playTransport.title = text.play;
+    if (this._syncButton) {
+      this._syncButton.hidden = !webapp;
+      this._syncButton.title = text.sync;
+      const stage = this._syncButton.parentElement;
+      if (stage && stage.classList) stage.classList.toggle("webapp", Boolean(webapp));
+    }
     this._pauseButton.hidden = webapp ? false : !canPause;
     this._pauseButton.title = webapp ? text.pause : (paused ? text.resume : text.pause);
     setIcon(this._pauseButton, webapp || !paused ? "mdi:pause" : "mdi:play");
@@ -927,29 +1006,55 @@ class AlquranCloudCard extends HTMLElement {
     this._hass.callService("media_player", delta > 0 ? "volume_up" : "volume_down", { entity_id: entity });
   }
 
+  async _sync() {
+    const text = strings(this._hass);
+    const session = sessionFor(this._hass, this._player && this._player.value);
+    this._syncSeq = session && Number(session.report_seq) || 0;
+    if (this._syncTimer) window.clearTimeout(this._syncTimer);
+    this._syncTimer = window.setTimeout(() => {
+      this._syncTimer = null;
+      const current = sessionFor(this._hass, this._player && this._player.value);
+      const seq = current && Number(current.report_seq) || 0;
+      if (seq <= this._syncSeq) {
+        this._status.textContent = text.pageSilent;
+        this._paintSessionPill(text, current, webappSelected(this, current));
+      }
+    }, 5000);
+    await this._transportAction("report");
+  }
+
+  _step(direction) {
+    const session = sessionFor(this._hass, this._player && this._player.value);
+    const webapp = webappSelected(this, session);
+    this._transportAction(webapp ? `${direction}_surah` : direction);
+  }
+
   async _transportAction(action) {
     const text = strings(this._hass);
     const entity = this._player.value;
     if (!entity) return;
     const session = sessionFor(this._hass, entity);
+    const webapp = webappSelected(this, session);
+    const pageStep = action === "play" || action === "pause" || action === "report"
+      || action === "next_ayah" || action === "previous_ayah"
+      || action === "next_surah" || action === "previous_surah";
     try {
+      if (webapp && pageStep) {
+        await this._hass.callService(
+          "alquran_cloud",
+          "transport",
+          { entity_id: entity, command: action },
+          { entity_id: entity }
+        );
+        return;
+      }
       if (action === "play" || action === "pause") {
-        const webapp = Boolean((session && session.webapp) || (this._webapp && this._webapp.checked));
         let service = action === "play" ? "media_play" : "media_pause";
         if (!webapp && action === "pause") {
           const state = this._playerState();
           service = state && state.state === "paused" ? "media_play" : "media_pause";
         }
         await this._hass.callService("media_player", service, { entity_id: entity });
-        return;
-      }
-      const webapp = Boolean((session && session.webapp) || (this._webapp && this._webapp.checked));
-      if (webapp && (action === "next" || action === "previous")) {
-        await this._hass.callService(
-          "media_player",
-          action === "next" ? "media_next_track" : "media_previous_track",
-          { entity_id: entity }
-        );
         return;
       }
       if (session) {

@@ -35,7 +35,7 @@ npx esbuild custom_components/alquran_cloud/www/kiosk/js/app.js \
 - The served kiosk scripts must stay Chrome 53 compatible: no `async`/`await`, `??`, or `?.`. The source may use them. The build test fails when the compat files drift.
 - Old TVs are webOS with Chrome below 80, and Samsung sets before Tizen 6.5. They use the JPEG stills and stay at 1×. Newer browsers get the 1080p clip. Do not bind arrow keys to ayah or surah movement.
 - Arabic ayah counts use the last two digits: 2 is آيتان, 3–10 is آيات, and every other ending is آية. Keep `const.py`, the kiosk, and the card on that rule.
-- In web app mode the card hides the surah and reciter. Play and pause are separate and call the media player. Next and previous call `media_next_track` and `media_previous_track`. Audio mode still calls `alquran_cloud.next_surah` and `previous_surah`.
+- In web app mode the card shows the last reported reciter, surah, and ayah. Previous surah, previous ayah, play, pause, next ayah, and next surah call `alquran_cloud.transport` on every TV. Sync calls `transport` with `report`. Audio mode still calls `alquran_cloud.next_surah` and `previous_surah`.
 - The kiosk has no login. `QuranKioskView` allows a request only from `request.remote`: loopback, an enabled Home Assistant adapter, or an explicit trusted subnet. Home Assistant lives on `request.app["hass"]`.
 - The page stores the last playback choices in `quran_kiosk_settings_v1`. A query parameter replaces that field. Reset restores the defaults, including remote next/previous back to the ayah. Escape and TV Back close an open overlay and otherwise leave the page.
 - Do not add a live report-back token unless the user asks.

@@ -78,6 +78,9 @@ check("lookahead rejects a bad bitrate", lib.lookaheadAudioPath("https://cdn.isl
 check("a blob clip can play", lib.isPlayableClipUrl("blob:http://ha.local/8f4e") === true);
 check("the cdn clip can play", lib.isPlayableClipUrl("https://cdn.islamic.network/quran/audio/128/ar.alafasy/2.mp3") === true);
 check("another host cannot play", lib.isPlayableClipUrl("https://example.com/a.mp3") === false);
+check("control ticket", lib.controlTicket("Abcd_efg-12345678") === "Abcd_efg-12345678");
+check("short ticket is dropped", lib.controlTicket("short") === "");
+check("ticket with a space is dropped", lib.controlTicket("Abcd_efg 12345678") === "");
 """
 
 _JS = Path(__file__).resolve().parents[1] / "custom_components" / "alquran_cloud" / "www" / "kiosk" / "js"

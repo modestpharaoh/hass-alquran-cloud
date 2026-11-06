@@ -76,10 +76,31 @@ play:
         boolean:
     webapp:
       name: Web app
-      description: Open the Quran web app in the browser of an LG, Samsung, or Android TV. Home Assistant does not follow the ayah after that.
-      required: false
+      description: Open the Quran web app in the browser of an LG, Samsung, or Android TV. The page reports the reciter, surah, and ayah back to the card.
+
+transport:
+  name: TV page command
+  description: Ask the open Quran page to play, pause, step one ayah or one surah, or send its current reciter, surah, and ayah. The page does not reload.
+  target:
+    entity:
+      domain: media_player
+  fields:
+    command:
+      name: Command
+      description: play, pause, next_ayah, previous_ayah, next_surah, previous_surah, or report. next and previous still follow the page setting. report does not change playback.
+      required: true
       selector:
-        boolean:
+        select:
+          options:
+            - play
+            - pause
+            - next
+            - previous
+            - next_ayah
+            - previous_ayah
+            - next_surah
+            - previous_surah
+            - report
     background_video:
       name: Background video
       description: Play the landscape video behind the web app. Ignored for joined audio.

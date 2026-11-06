@@ -97,9 +97,12 @@ function button() {
 }
 const view = {
   _previousButton: button(),
+  _previousAyahButton: button(),
+  _nextAyahButton: button(),
   _nextButton: button(),
   _playTransport: button(),
   _pauseButton: button(),
+  _syncButton: button(),
   _transport: { hidden: null }
 };
 card.AlquranCloudCard.prototype._renderTransport.call(view, text, {
@@ -107,17 +110,32 @@ card.AlquranCloudCard.prototype._renderTransport.call(view, text, {
   attributes: { supported_features: 1 }
 }, true);
 check("web app shows play and pause", view._playTransport.hidden === false && view._pauseButton.hidden === false);
-check("web app labels are next and previous", view._nextButton.title === "Next" && view._previousButton.title === "Previous");
+check("web app shows the ayah steps", view._previousAyahButton.hidden === false && view._nextAyahButton.title === "Next ayah");
+check("web app shows sync", view._syncButton.hidden === false && view._syncButton.title === "Sync");
+check("web app labels name the surah", view._nextButton.title === "Next surah" && view._previousButton.title === "Previous surah");
 card.AlquranCloudCard.prototype._renderTransport.call(view, text, {
   state: "playing",
   attributes: { supported_features: 1 }
 }, false);
 check("audio hides the extra play button", view._playTransport.hidden === true && view._nextButton.title === "Next surah");
+check("audio hides the ayah steps and sync", view._previousAyahButton.hidden === true && view._nextAyahButton.hidden === true && view._syncButton.hidden === true);
+const pill = { className: "" };
+card.AlquranCloudCard.prototype._paintSessionPill.call({
+  _statePill: pill,
+  _status: { textContent: "" }
+}, text, { webapp: true, live: true }, true);
+check("a reporting page is green", pill.className === "state-pill live");
+card.AlquranCloudCard.prototype._paintSessionPill.call({
+  _statePill: pill,
+  _status: { textContent: "The page did not answer." }
+}, text, { webapp: true, live: true }, true);
+check("a silent page is red", pill.className === "state-pill silent");
 
 const calls = [];
-function host(webapp, state) {
+function host(webapp, state, platform) {
   return {
     _hass: {
+      entities: platform ? { "media_player.living_room": { platform: platform } } : {},
       states: {
         "sensor.al_quran_cloud_active_sessions": {
           entity_id: "sensor.al_quran_cloud_active_sessions",
@@ -138,14 +156,28 @@ function host(webapp, state) {
 }
 async function exercise() {
   calls.length = 0;
-  const tv = host(true, "playing");
-  await card.AlquranCloudCard.prototype._transportAction.call(tv, "next");
-  await card.AlquranCloudCard.prototype._transportAction.call(tv, "previous");
+  const tv = host(true, "playing", "webostv");
+  await card.AlquranCloudCard.prototype._transportAction.call(tv, "previous_surah");
+  await card.AlquranCloudCard.prototype._transportAction.call(tv, "previous_ayah");
   await card.AlquranCloudCard.prototype._transportAction.call(tv, "play");
   await card.AlquranCloudCard.prototype._transportAction.call(tv, "pause");
-  check("web app next is a track command", calls[0].domain === "media_player" && calls[0].service === "media_next_track");
-  check("web app previous is a track command", calls[1].service === "media_previous_track");
-  check("web app play and pause stay separate", calls[2].service === "media_play" && calls[3].service === "media_pause");
+  await card.AlquranCloudCard.prototype._transportAction.call(tv, "next_ayah");
+  await card.AlquranCloudCard.prototype._transportAction.call(tv, "next_surah");
+  await card.AlquranCloudCard.prototype._transportAction.call(tv, "report");
+  check("web app previous surah asks the page", calls[0].domain === "alquran_cloud" && calls[0].service === "transport" && calls[0].data.command === "previous_surah");
+  check("web app previous ayah asks the page", calls[1].data.command === "previous_ayah");
+  check("web app play and pause stay separate", calls[2].data.command === "play" && calls[3].data.command === "pause");
+  check("web app next ayah asks the page", calls[4].data.command === "next_ayah");
+  check("web app next surah asks the page", calls[5].data.command === "next_surah");
+  check("sync asks the page to report", calls[6].data.command === "report");
+  calls.length = 0;
+  const android = host(true, "playing", "androidtv");
+  await card.AlquranCloudCard.prototype._transportAction.call(android, "next_ayah");
+  await card.AlquranCloudCard.prototype._transportAction.call(android, "play");
+  await card.AlquranCloudCard.prototype._transportAction.call(android, "report");
+  check("android ayah step asks the page", calls[0].domain === "alquran_cloud" && calls[0].service === "transport" && calls[0].data.command === "next_ayah");
+  check("android play asks the page", calls[1].service === "transport" && calls[1].data.command === "play");
+  check("android sync still asks the page", calls[2].data.command === "report");
   calls.length = 0;
   const speaker = host(false, "playing");
   await card.AlquranCloudCard.prototype._transportAction.call(speaker, "next");

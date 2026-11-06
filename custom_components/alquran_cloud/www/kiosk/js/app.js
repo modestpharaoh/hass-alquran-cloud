@@ -78,6 +78,7 @@
       set('background_video', bgVideoEnabled ? 'true' : 'false');
       url.searchParams.delete('lang');
       set('language', language);
+      if (pageTicket) url.searchParams.set('control', pageTicket);
       history.replaceState(null, '', url.pathname + url.search + url.hash);
     }
 
@@ -217,6 +218,7 @@
 
     // --- 2. Query Params & State ---
     const params = new URLSearchParams(window.location.search);
+    const pageTicket = controlTicket(params.get('control'));
 
     function queryInt(name, fallback, min, max) {
       return boundedQueryInt(params, name, fallback, min, max);
@@ -454,6 +456,7 @@
           navigator.mediaSession.playbackState = continuingPlayback ? 'playing' : 'paused';
         } catch (err) { /* playbackState is missing on older TVs */ }
       }
+      notePlayback();
     }
 
     function applyPlaybackRate() {
@@ -728,6 +731,7 @@
     }
 
     function refreshPlaybackInfo() {
+      notePlayback();
       if (!surahData) return;
       if (language === 'ar') {
         const parts = [surahHeading(), ' · ', ayahCountNode(surahData.numberOfAyahs)];
@@ -1613,6 +1617,104 @@
       return true;
     }
 
+    let reportedKey = '';
+    let controlGeneration = 0;
+    let controlXhr = null;
+
+    function reportedAyah() {
+      if (!isBismillah && surahData && surahData.ayahs && surahData.ayahs[currentAyahIndex]) {
+        const number = Number(surahData.ayahs[currentAyahIndex].numberInSurah);
+        if (number) return number;
+      }
+      return startAyah;
+    }
+
+    function notePlayback() {
+      if (!pageTicket) return;
+      const key = [reciter, currentSurah, reportedAyah(), continuingPlayback ? 1 : 0].join('|');
+      if (key === reportedKey && controlXhr) return;
+      reportedKey = key;
+      watchControl();
+    }
+
+    function controlRequestUrl() {
+      const query = [
+        'ticket=' + encodeURIComponent(pageTicket),
+        'reciter=' + encodeURIComponent(safeEditionId(reciter, '')),
+        'surah=' + encodeURIComponent(String(currentSurah)),
+        'ayah=' + encodeURIComponent(String(reportedAyah())),
+        'playing=' + (continuingPlayback ? '1' : '0')
+      ].join('&');
+      return resolveAssetUrl(window.location.href, 'control?' + query);
+    }
+
+    function pressControl(id) {
+      const button = document.getElementById(id);
+      if (button) button.click();
+    }
+
+    function applyControlCommand(command) {
+      if (command === 'pause') {
+        if (continuingPlayback) pausePlayback();
+      } else if (command === 'play') {
+        if (!continuingPlayback) startPlayback();
+      } else if (command === 'next_ayah') {
+        pressControl('btn-next-ayah');
+      } else if (command === 'previous_ayah') {
+        pressControl('btn-prev-ayah');
+      } else if (command === 'next_surah') {
+        pressControl('btn-next-surah');
+      } else if (command === 'previous_surah') {
+        pressControl('btn-prev-surah');
+      } else if (command === 'next') {
+        skipFromRemote('next');
+      } else if (command === 'previous') {
+        skipFromRemote('prev');
+      }
+    }
+
+    function watchControl() {
+      if (!pageTicket) return;
+      const generation = ++controlGeneration;
+      if (controlXhr) {
+        try { controlXhr.abort(); } catch (err) { /* the previous wait is being replaced */ }
+        controlXhr = null;
+      }
+      const xhr = new XMLHttpRequest();
+      controlXhr = xhr;
+      xhr.open('GET', controlRequestUrl(), true);
+      xhr.timeout = 25000;
+      const finish = (retry) => {
+        if (generation !== controlGeneration) return;
+        controlXhr = null;
+        if (retry) setTimeout(watchControl, 2000);
+        else watchControl();
+      };
+      xhr.onload = () => {
+        if (generation !== controlGeneration) return;
+        if (xhr.status === 404 || xhr.status === 403) {
+          controlXhr = null;
+          return;
+        }
+        let command = '';
+        if (xhr.status === 200) {
+          try {
+            const body = JSON.parse(xhr.responseText || '{}');
+            command = body && body.command ? String(body.command) : '';
+          } catch (err) { /* an empty body asks again */ }
+        }
+        applyControlCommand(command);
+        if (generation !== controlGeneration) return;
+        finish(false);
+      };
+      xhr.onerror = () => finish(true);
+      xhr.ontimeout = () => finish(true);
+      xhr.onabort = () => {
+        if (controlXhr === xhr) controlXhr = null;
+      };
+      xhr.send();
+    }
+
     function handleTransportKey(event) {
       const action = mediaKeyAction(event);
       if (!action) return false;
@@ -1686,6 +1788,7 @@
 
     // --- 11. Initial Launch ---
     (async function init() {
+      notePlayback();
       applyLanguage();
       updateRemoteSkipUI();
       updateSpeedUI();

@@ -333,3 +333,49 @@ async def test_mid_track_stop_does_not_advance(hass: HomeAssistant):
     )
     await _finish(manager, "media_player.room", position=3, duration=40)
     assert manager.get_session("media_player.room") is None
+
+
+@pytest.mark.asyncio
+async def test_webapp_ticket_queues_a_command_and_stores_a_report(hass: HomeAssistant):
+    manager = _manager(hass)
+    reciter = manager.catalog.get_reciter("ar.alafasy")
+    chapter = manager.catalog.get_chapter(1)
+    await manager.async_start(
+        "media_player.lg",
+        reciter,
+        chapter,
+        1,
+        3,
+        repeat=1,
+        continue_surah=False,
+        loop=False,
+        speed=1,
+        webapp=True,
+        platform="webostv",
+    )
+    session = manager.get_session("media_player.lg")
+    target = hass.services.async_call.await_args_list[-1].args[2]["payload"]["target"]
+    assert f"control={session.control_ticket}" in target
+    assert "control=" not in session.expected_url
+    attrs = session.as_attr_dict()
+    assert "control_ticket" not in attrs
+    assert session.control_ticket not in str(attrs)
+    assert attrs["live"] is False
+    assert manager.session_for_ticket(session.control_ticket) is session
+    assert manager.session_for_ticket("not-a-ticket") is None
+    assert manager.queue_transport("media_player.lg", "pause") is True
+    assert manager.queue_transport("media_player.lg", "next_ayah") is True
+    assert manager.queue_transport("media_player.lg", "previous_surah") is True
+    assert manager.queue_transport("media_player.lg", "sideways") is False
+    assert await manager.wait_transport(session, timeout=0.05) == "pause"
+    assert await manager.wait_transport(session, timeout=0.05) == "next_ayah"
+    assert await manager.wait_transport(session, timeout=0.05) == "previous_surah"
+    assert await manager.wait_transport(session, timeout=0.05) == ""
+    manager.apply_report(session, reciter_id="ar.alafasy", surah=2, ayah=2, playing=True)
+    assert session.live is True
+    assert session.chapter == 2
+    assert session.ayah == 2
+    assert session.playing is True
+    assert session.report_seq == 1
+    assert session.as_attr_dict()["title"] == "002:002 · Al-Baqarah"
+    assert manager.queue_transport("media_player.room", "play") is False

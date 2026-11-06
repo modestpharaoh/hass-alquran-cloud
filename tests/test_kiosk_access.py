@@ -142,3 +142,69 @@ async def test_lookahead_route_stays_on_the_local_network(monkeypatch):
     allowed = await view.get(Request("127.0.0.1"), "audio/128/ar.alafasy/1.mp3")
     assert allowed.status == 200
     assert seen["url"] == "https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3"
+
+
+@pytest.mark.asyncio
+async def test_control_route_stays_local_and_returns_one_command():
+    import json
+
+    class Session:
+        def __init__(self):
+            self.entity_id = "media_player.lg"
+            self.control_ticket = "abcdefghijklmnop"
+            self.commands = ["next"]
+            self.report = None
+
+    session = Session()
+
+    class Sessions:
+        def session_for_ticket(self, ticket):
+            return session if ticket == session.control_ticket else None
+
+        def apply_report(self, found, **kwargs):
+            session.report = kwargs
+
+        async def wait_transport(self, found, timeout=20):
+            if found.commands:
+                return found.commands.pop(0)
+            return ""
+
+        def get_session(self, entity_id):
+            return session if entity_id == session.entity_id else None
+
+    class Entries:
+        def async_entries(self, domain):
+            return [SimpleNamespace(runtime_data=SimpleNamespace(sessions=Sessions()), options={})]
+
+    class Request:
+        def __init__(self, remote, query):
+            self.remote = remote
+            self.path = "/api/alquran_cloud/kiosk/control"
+            self.query = query
+            self.app = {"hass": SimpleNamespace(config_entries=Entries())}
+
+    view = QuranKioskView()
+    denied = await view.get(Request("8.8.8.8", {"ticket": session.control_ticket}), "control")
+    assert denied.status == 403
+    assert session.report is None
+    missing = await view.get(Request("127.0.0.1", {"ticket": "missing-ticket-value"}), "control")
+    assert missing.status == 404
+    answer = await view.get(
+        Request(
+            "127.0.0.1",
+            {
+                "ticket": session.control_ticket,
+                "reciter": "ar.alafasy",
+                "surah": "2",
+                "ayah": "3",
+                "playing": "1",
+            },
+        ),
+        "control",
+    )
+    assert answer.status == 200
+    assert json.loads(answer.body) == {"command": "next"}
+    assert session.report["surah"] == 2
+    assert session.report["ayah"] == 3
+    assert session.report["playing"] is True
+    assert session.commands == []

@@ -113,13 +113,13 @@ The web app runs in the TV’s own browser. Home Assistant can open it on these 
 
 The Android TV Remote integration does not open this page. Add the set with the ADB integration.
 
-Turn on **Web app**. Home Assistant opens `/api/alquran_cloud/kiosk/` in that browser with the reciter, surah, ayah range, speed, repeat, continue, loop, and background video in the address. The TV then owns playback. The card does not show the surah or reciter for that session. It can play, pause, and send next or previous track, and it does not follow the ayah. The TV page decides whether that step is an ayah or a surah. The TV going idle does not end the session. `background_video` defaults to off. Turn it on to play the landscape clip behind the page. It does nothing for joined audio. The card shows that switch only while **Web app** is on.
+Turn on **Web app**. Home Assistant opens `/api/alquran_cloud/kiosk/` in that browser with the reciter, surah, ayah range, speed, repeat, continue, loop, and background video in the address. The TV then owns playback. The page reports the reciter, surah, and ayah, and the card shows that last report. Sync asks for it again. Play, pause, previous ayah, next ayah, previous surah, and next surah reach the page on every TV. The TV going idle does not end the session. `background_video` defaults to off. Turn it on to play the landscape clip behind the page. It does nothing for joined audio. The card shows that switch only while **Web app** is on.
 
 The player list in that mode contains only those TVs (`webostv`, Samsung, and `androidtv`), in alphabetical order. Chromecast stays on the audio list. A Chromecast with Google TV can open the page when that device is also added with the Android TV ADB integration.
 
 The page was rebuilt for the limited browsers on LG webOS and Samsung. The script the TV loads is compiled down to Chrome 53, with a few missing DOM calls filled in, so a webOS 4 set from around 2018 can run it. Arabic is drawn with a bundled Noto Sans Arabic font, because the TV font splits words such as السور and الإعدادات. Buttons are inline SVG, because those sets have no emoji font. On webOS 4, 5, and 6, and on Samsung sets from before Tizen 6.5, the background is a series of still pictures and playback stays at 1×. Those browsers can decode only one media stream, so a video behind the ayah audio stops after a few seconds, and their decoder ignores other speeds. A newer browser, including Android TV, still gets the 1080p clip and the other speeds. Details are in [Quran player](docs/kiosk.md).
 
-The address uses the internal Home Assistant URL when one is set. `http://` is enough for the page. The page has no login, and it opens only from loopback or from a subnet on an enabled Home Assistant network adapter. **Also allow private addresses** opens it to other private LANs. **Extra trusted subnets** adds CIDRs such as `192.168.50.0/24`. A Docker bridge install whose only adapter is `172.17.0.0/16` needs one of those before a `192.168` TV can open the page. Audio and ayah pictures are loaded by the TV from `cdn.islamic.network`. The card’s next and previous buttons send `media_next_track` and `media_previous_track`. The page decides whether that step is an ayah or a surah. The `next_surah` and `previous_surah` actions still open the neighboring full surah.
+The address uses the internal Home Assistant URL when one is set. `http://` is enough for the page. The page has no login, and it opens only from loopback or from a subnet on an enabled Home Assistant network adapter. **Also allow private addresses** opens it to other private LANs. **Extra trusted subnets** adds CIDRs such as `192.168.50.0/24`. A Docker bridge install whose only adapter is `172.17.0.0/16` needs one of those before a `192.168` TV can open the page. Audio and ayah pictures are loaded by the TV from `cdn.islamic.network`. In web app mode the card’s play, pause, ayah, and surah buttons call `alquran_cloud.transport` on every TV. The `next_surah` and `previous_surah` actions still open the neighboring full surah.
 
 ## Actions
 
@@ -159,6 +159,16 @@ data:
   loop: false
   webapp: true
   background_video: false
+```
+
+`alquran_cloud.transport` sends one command to the page that is already open. It does not reload the page and it does not open a new surah. `command` is `play`, `pause`, `previous_ayah`, `next_ayah`, `previous_surah`, `next_surah`, or `report`. The ayah and surah commands step one ayah or one whole surah. `next` and `previous` still follow the ayah-or-surah choice saved on the TV. `report` asks the page for the current reciter, surah, and ayah and leaves the clip where it is. The card uses this action for its six buttons and for Sync.
+
+```yaml
+action: alquran_cloud.transport
+target:
+  entity_id: media_player.living_room_tv
+data:
+  command: next_ayah
 ```
 
 Stop, next, and previous use the player from the current session. Next and previous open the neighboring full surah with the same repeat, speed, web app, and background setting.

@@ -24,6 +24,7 @@ from .const import (
     ATTR_BACKGROUND_VIDEO,
     ATTR_SPEED,
     ATTR_SURAH,
+    ATTR_COMMAND,
     ATTR_WEBAPP,
     CONF_PLAYBACK_SPEED,
     DEFAULT_BACKGROUND_VIDEO,
@@ -43,11 +44,12 @@ from .const import (
     SERVICE_PLAY,
     SERVICE_PREVIOUS_SURAH,
     SERVICE_STOP,
+    SERVICE_TRANSPORT,
     coerce_speed,
     webapp_enabled,
 )
 from .coordinator import QuranCoordinator
-from .session import PlaybackSessionManager
+from .session import TRANSPORT_COMMANDS, PlaybackSessionManager
 from .video import LocalMediaError
 
 PLAY_SCHEMA = vol.Schema(
@@ -71,6 +73,14 @@ PLAY_SCHEMA = vol.Schema(
 
 STOP_SCHEMA = vol.Schema(
     {vol.Optional(ATTR_ENTITY_ID): cv.entity_ids},
+    extra=vol.ALLOW_EXTRA,
+)
+
+TRANSPORT_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_ENTITY_ID): cv.entity_ids,
+        vol.Required(ATTR_COMMAND): vol.In(sorted(TRANSPORT_COMMANDS)),
+    },
     extra=vol.ALLOW_EXTRA,
 )
 
@@ -194,6 +204,12 @@ def async_register_services(
     async def async_handle_previous(call: ServiceCall) -> None:
         await _handle_skip(call, -1)
 
+    async def async_handle_transport(call: ServiceCall) -> None:
+        command = str(call.data[ATTR_COMMAND])
+        for entity_id in await _entity_ids(call):
+            if not sessions.queue_transport(entity_id, command):
+                raise HomeAssistantError("The Quran page is not open on that player.")
+
     async def _clear(kind: str) -> None:
         store = hass.data.get(DOMAIN, {}).get("store")
         if store is None:
@@ -216,6 +232,10 @@ def async_register_services(
         hass.services.async_register(DOMAIN, SERVICE_PLAY, async_handle_play, schema=PLAY_SCHEMA)
     if not hass.services.has_service(DOMAIN, SERVICE_STOP):
         hass.services.async_register(DOMAIN, SERVICE_STOP, async_handle_stop, schema=STOP_SCHEMA)
+    if not hass.services.has_service(DOMAIN, SERVICE_TRANSPORT):
+        hass.services.async_register(
+            DOMAIN, SERVICE_TRANSPORT, async_handle_transport, schema=TRANSPORT_SCHEMA
+        )
     if not hass.services.has_service(DOMAIN, SERVICE_NEXT_SURAH):
         hass.services.async_register(DOMAIN, SERVICE_NEXT_SURAH, async_handle_next, schema=STOP_SCHEMA)
     if not hass.services.has_service(DOMAIN, SERVICE_PREVIOUS_SURAH):
@@ -277,6 +297,7 @@ def async_unregister_services(hass: HomeAssistant) -> None:
     for service in (
         SERVICE_PLAY,
         SERVICE_STOP,
+        SERVICE_TRANSPORT,
         SERVICE_NEXT_SURAH,
         SERVICE_PREVIOUS_SURAH,
         SERVICE_CLEAR_CACHE,

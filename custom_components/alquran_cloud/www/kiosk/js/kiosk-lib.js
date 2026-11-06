@@ -136,6 +136,11 @@ function resolvePlayback(params, stored, legacyTv) {
   };
 }
 
+function controlTicket(value) {
+  const ticket = String(value == null ? '' : value).trim();
+  return /^[A-Za-z0-9_-]{8,64}$/.test(ticket) ? ticket : '';
+}
+
 function mediaKeyAction(event) {
   if (!event || event.repeat) return '';
   const target = event.target;
@@ -278,6 +283,7 @@ const kioskLib = {
   boundedQueryInt,
   languageFromSearch,
   resolvePlayback,
+  controlTicket,
   mediaKeyAction,
   overlayBackKey,
   oldTvBrowser,

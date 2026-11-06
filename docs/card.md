@@ -39,7 +39,7 @@ background_video: false
 | `webapp` | Opens the Quran web app on a TV instead of playing a joined MP3. |
 | `background_video` | Landscape clip behind the web app. Hidden unless `webapp` is on. Defaults to false. |
 
-Play calls `alquran_cloud.play` with those fields. Pause, resume, and volume use the media player’s own services when the player supports them. In audio mode, next and previous call `alquran_cloud.next_surah` and `previous_surah`. In web app mode they call `media_player.media_next_track` and `media_previous_track`. Stop calls `alquran_cloud.stop`.
+Play calls `alquran_cloud.play` with those fields. Pause, resume, and volume use the media player’s own services when the player supports them. In audio mode, next and previous call `alquran_cloud.next_surah` and `previous_surah`. In web app mode, previous surah, previous ayah, play, pause, next ayah, and next surah call `alquran_cloud.transport` on every TV. Sync calls `alquran_cloud.transport` with `report`. Stop calls `alquran_cloud.stop`.
 
 Reciters and surahs are loaded from the `media-source://alquran_cloud` catalog, the same tree as the media browser. Favorites saved in the integration options come first.
 
@@ -67,7 +67,7 @@ The card speaks the integration’s display language, from `display_language` on
 
 The volume row is directly under the media player when that player reports a level or supports volume. The percent, such as `42%`, sits just before the increase button. Plus, minus, and the slider all update that number together.
 
-Web app mode hides the progress bar and the surah, reciter, and status lines. The stage keeps a note that Home Assistant does not track the ayah on the TV, plus previous, play, pause, and next. Play and pause are separate buttons and call the media player’s play and pause. Next and previous call `media_next_track` and `media_previous_track`. The TV page decides whether that step is an ayah or a surah. Volume controls stay if the entity supports volume. The background switch is shown only in this mode and is sent as `background_video`.
+Web app mode hides the progress bar and the mushaf line. The stage shows the reciter, the surah, and the ayah from the last report the page sent. Before that first report it shows the range that was opened. Playing or paused comes from that report. The status pill is green while the page is reporting and red when it is not. One row holds previous surah, previous ayah, play, pause, next ayah, and next surah. Arabic reverses that row. Hover shows the name. Those six buttons call `alquran_cloud.transport` on LG webOS, Samsung, and Android TV. They step one ayah or one surah and do not follow the page’s remote setting. Sync sits at the top corner, on the right in English and on the left in Arabic. It asks the page to send the current values and does not change playback. If the page does not answer within a few seconds, the card says so and the pill turns red. The last report stays until Stop. A physical remote’s media keys work on Android TV and often do not arrive on LG webOS or Samsung. Volume controls stay if the entity supports volume. The background switch is shown only in this mode and is sent as `background_video`.
 
 Continue-to-next stays available in web app mode for a full surah. The TV player receives it as `auto_surah`. Loop stays available in both modes and is sent as `loop`. Background video is shown only while the web app is selected.
 
@@ -76,6 +76,6 @@ Continue-to-next stays available in web app mode for a full surah. The TV player
 - One card for both modes. `webapp` switches the player list and which controls are visible.
 - Players are alphabetical in both modes.
 - Web app mode never offers a speaker or a Chromecast. A saved non-TV entity is dropped rather than sent to a player that cannot open the page.
-- The card does not estimate the current ayah while the web app is open. The session is the range that was opened.
-- In web app mode the stage does not show that surah or reciter. It offers play, pause, and next and previous track.
+- The card shows the reciter, surah, and ayah the page last reported. It does not estimate an ayah from a media position.
+- In web app mode the stage offers previous surah, previous ayah, play, pause, next ayah, next surah, and Sync.
 - Progress belongs to the joined MP3, not to the TV page. Audio mode keeps one button that switches between play and pause.

@@ -305,6 +305,67 @@ async def adapter_networks(hass) -> list:
     return networks
 
 
+def _query_value(request: web.Request, name: str) -> str:
+    query = getattr(request, "query", None)
+    getter = getattr(query, "get", None)
+    if getter is None:
+        return ""
+    value = getter(name, "")
+    return "" if value is None else str(value)
+
+
+def _query_int(request: web.Request, name: str) -> int | None:
+    raw = _query_value(request, name).strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
+def _query_playing(request: web.Request) -> bool | None:
+    raw = _query_value(request, "playing").strip().lower()
+    if raw in {"1", "true", "yes"}:
+        return True
+    if raw in {"0", "false", "no"}:
+        return False
+    return None
+
+
+def _sessions_for(hass):
+    """Return the playback sessions for the first config entry."""
+    entries = getattr(getattr(hass, "config_entries", None), "async_entries", None)
+    if entries is None:
+        return None
+    found = entries(DOMAIN)
+    if not found:
+        return None
+    runtime = getattr(found[0], "runtime_data", None)
+    return getattr(runtime, "sessions", None)
+
+
+async def serve_control(request: web.Request, hass) -> web.Response:
+    """Hold one local request until the page should play, pause, skip, or report."""
+    sessions = _sessions_for(hass)
+    if sessions is None:
+        return web.json_response({"command": ""}, status=404)
+    session = sessions.session_for_ticket(_query_value(request, "ticket"))
+    if session is None:
+        return web.json_response({"command": ""}, status=404)
+    sessions.apply_report(
+        session,
+        reciter_id=_query_value(request, "reciter").strip() or None,
+        surah=_query_int(request, "surah"),
+        ayah=_query_int(request, "ayah"),
+        playing=_query_playing(request),
+    )
+    command = await sessions.wait_transport(session)
+    if sessions.get_session(session.entity_id) is not session:
+        return web.json_response({"command": ""}, status=404)
+    return web.json_response({"command": command}, headers={"Cache-Control": "no-store"})
+
+
 def _refuse(
     remote: str | None,
     *,
@@ -356,6 +417,8 @@ class QuranKioskView:
                 adapter_count=len(networks),
                 trusted_count=len(trusted),
             )
+        if (path or "").strip("/") == "control":
+            return await serve_control(request, hass)
         cdn_audio = lookahead_audio_url(path)
         if cdn_audio:
             return await stream_lookahead_audio(request, cdn_audio, hass)

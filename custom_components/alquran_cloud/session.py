@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
+import hmac
 import logging
+import re
+import secrets
 from collections.abc import Awaitable, Callable, Coroutine
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from homeassistant.components.media_player import (
@@ -43,6 +47,21 @@ _LOGGER = logging.getLogger(__name__)
 
 _IDLE_STATES = {STATE_IDLE, STATE_OFF, MediaPlayerState.IDLE, MediaPlayerState.OFF}
 _USER_STOP_SERVICES = {SERVICE_MEDIA_STOP, SERVICE_TURN_OFF, "media_pause"}
+TRANSPORT_COMMANDS = frozenset({
+    "play",
+    "pause",
+    "next",
+    "previous",
+    "next_ayah",
+    "previous_ayah",
+    "next_surah",
+    "previous_surah",
+    "report",
+})
+CONTROL_WAIT_SECONDS = 20.0
+_CONTROL_QUEUE_LIMIT = 8
+_TICKET = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
+_EDITION_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 ATTR_MEDIA_EXTRA = "extra"
 
 ListenerCallback = Callable[[], None]
@@ -112,6 +131,12 @@ class PlaybackSession:
     max_position: float = 0.0
     pending_play: bool = False
     user_interrupted: bool = False
+    control_ticket: str = ""
+    live: bool = False
+    playing: bool = False
+    report_seq: int = 0
+    commands: list[str] = field(default_factory=list)
+    control_event: asyncio.Event | None = None
 
     def as_attr_dict(self) -> dict[str, Any]:
         """Return a serializable attribute dict for sensors."""
@@ -135,6 +160,9 @@ class PlaybackSession:
             "artist": self.artist,
             "album": self.album,
             "image_url": self.image_url,
+            "live": self.live,
+            "playing": self.playing,
+            "report_seq": self.report_seq,
             "spans": [
                 [int(ayah), float(start), float(end)] for ayah, start, end in self.spans
             ],
@@ -314,6 +342,7 @@ class PlaybackSessionManager:
         self._bump(entity_id)
         removed = self._sessions.pop(entity_id, None)
         if removed:
+            self._wake_control(removed)
             self._notify_listeners()
         try:
             if stop_media:
@@ -667,6 +696,7 @@ class PlaybackSessionManager:
             language=kiosk_language(language),
             background_video=session.background_video,
         )
+        session.control_ticket = secrets.token_urlsafe(12)
         session.expected_url = url
         session.marker = ""
         session.title = self._video_title(chapter, session.start_ayah, session.end_ayah, language)
@@ -674,8 +704,104 @@ class PlaybackSessionManager:
         session.album = ""
         session.image_url = ""
         session.spans = ()
+        session.live = False
+        session.playing = False
+        session.commands.clear()
         self._bump(session.entity_id)
-        await self._async_launch_browser(session, url, blocking=blocking)
+        await self._async_launch_browser(
+            session, f"{url}&control={session.control_ticket}", blocking=blocking
+        )
+
+    def session_for_ticket(self, ticket: str) -> PlaybackSession | None:
+        """Return the web app session opened with this ticket."""
+        needle = str(ticket or "")
+        if not _TICKET.match(needle):
+            return None
+        for session in self._sessions.values():
+            current = session.control_ticket
+            if not current or len(current) != len(needle):
+                continue
+            if hmac.compare_digest(current, needle):
+                return session
+        return None
+
+    def queue_transport(self, entity_id: str, command: str) -> bool:
+        """Queue one command for the open web app page."""
+        session = self._sessions.get(entity_id)
+        if session is None or not session.webapp or not session.control_ticket:
+            return False
+        if command not in TRANSPORT_COMMANDS:
+            return False
+        if len(session.commands) >= _CONTROL_QUEUE_LIMIT:
+            del session.commands[0]
+        session.commands.append(command)
+        self._wake_control(session)
+        return True
+
+    async def wait_transport(self, session: PlaybackSession, timeout: float = CONTROL_WAIT_SECONDS) -> str:
+        """Return the next queued command, or an empty string when the wait ends."""
+        queued = self._pop_command(session)
+        if queued:
+            return queued
+        event = asyncio.Event()
+        session.control_event = event
+        queued = self._pop_command(session)
+        if queued:
+            if session.control_event is event:
+                session.control_event = None
+            return queued
+        try:
+            await asyncio.wait_for(event.wait(), timeout)
+        except TimeoutError:
+            return ""
+        finally:
+            if session.control_event is event:
+                session.control_event = None
+        return self._pop_command(session)
+
+    def apply_report(
+        self,
+        session: PlaybackSession,
+        *,
+        reciter_id: str | None,
+        surah: int | None,
+        ayah: int | None,
+        playing: bool | None,
+    ) -> None:
+        """Store the reciter, surah, ayah, and playing flag sent by the page."""
+        if reciter_id and _EDITION_ID.match(reciter_id):
+            session.reciter_id = reciter_id
+        if surah is not None and 1 <= surah <= 114:
+            session.chapter = surah
+        catalog = self.catalog
+        chapter = catalog.get_chapter(session.chapter) if catalog is not None else None
+        if ayah is not None and 1 <= ayah <= 286 and (chapter is None or ayah <= chapter.verses_count):
+            session.ayah = ayah
+        if playing is not None:
+            session.playing = playing
+        session.live = True
+        session.report_seq += 1
+        language = get_display_language(self.coordinator.entry.options)
+        if catalog is not None:
+            reciter = catalog.get_reciter(session.reciter_id)
+            chapter = catalog.get_chapter(session.chapter)
+            if reciter is not None:
+                session.artist = reciter.localized_name(language)
+            if chapter is not None:
+                session.title = chapter.ayah_title(session.ayah, language)
+        self._notify_listeners()
+
+    @staticmethod
+    def _pop_command(session: PlaybackSession) -> str:
+        if not session.commands:
+            return ""
+        return session.commands.pop(0)
+
+    @staticmethod
+    def _wake_control(session: PlaybackSession) -> None:
+        event = session.control_event
+        if event is not None and not event.is_set():
+            event.set()
 
     def _video_title(self, chapter: Any, start_ayah: int, end_ayah: int, language: str) -> str:
         title = chapter.display_title(language)
