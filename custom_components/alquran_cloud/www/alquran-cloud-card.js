@@ -323,9 +323,33 @@ const STYLE = `
   .transport button {
     flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: none; border-radius: 50%;
     background: rgba(255, 255, 255, 0.16); color: #f6fff8; cursor: pointer;
+    transition: background 80ms ease, color 80ms ease, box-shadow 80ms ease, transform 80ms ease;
   }
   .transport button.pause { flex-basis: 52px; width: 52px; height: 52px; background: #f6fff8; color: #0c1c14; }
-  ha-icon { --mdc-icon-size: 22px; }
+  .transport button:hover {
+    background: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.28);
+    transform: scale(1.08);
+  }
+  .transport button.pause:hover {
+    background: #ffffff;
+    box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.38);
+    transform: scale(1.08);
+  }
+  .transport button:active,
+  .transport button.pressed {
+    background: #ffffff; color: #0c1c14;
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.45);
+    transform: scale(0.9);
+  }
+  .transport button.pause:active,
+  .transport button.pause.pressed {
+    background: #026634; color: #ffffff;
+    box-shadow: 0 0 0 5px rgba(2, 102, 52, 0.45);
+    transform: scale(0.9);
+  }
+  .transport button:focus-visible { outline: 2px solid #ffffff; outline-offset: 3px; }
+  ha-icon { --mdc-icon-size: 22px; color: inherit; pointer-events: none; }
   .body { display: flex; flex-direction: column; gap: 12px; padding: 12px 16px 16px; }
   label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--secondary-text-color); }
   select, input[type="number"] {
@@ -344,13 +368,30 @@ const STYLE = `
   button.action {
     flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
     padding: 10px 12px; border: none; border-radius: 999px; font: inherit; cursor: pointer;
+    transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
   }
   button.play { background: #026634; color: #fff; }
+  button.play:hover { background: #038a46; box-shadow: 0 0 0 3px rgba(2, 102, 52, 0.28); }
+  button.play:active,
+  button.play.pressed { background: #ffffff; color: #026634; box-shadow: inset 0 0 0 2px #026634; transform: scale(0.97); }
   button.stop { background: var(--secondary-background-color, rgba(127, 127, 127, 0.2)); color: var(--primary-text-color); }
+  button.stop:hover { box-shadow: inset 0 0 0 2px var(--primary-text-color); }
+  button.stop:active,
+  button.stop.pressed {
+    background: var(--primary-text-color, #1c1c1c); color: var(--card-background-color, #fff);
+    transform: scale(0.97);
+  }
+  button.action:focus-visible { outline: 2px solid #026634; outline-offset: 3px; }
   button.icon {
     flex: 0 0 36px; width: 36px; height: 36px; padding: 0; border: none; border-radius: 50%;
     background: var(--secondary-background-color, rgba(127, 127, 127, 0.18));
     color: var(--primary-text-color); cursor: pointer;
+    transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+  }
+  button.icon:hover { background: var(--divider-color, rgba(127, 127, 127, 0.4)); transform: scale(1.06); }
+  button.icon:active,
+  button.icon.pressed {
+    background: var(--primary-text-color); color: var(--card-background-color, #fff); transform: scale(0.9);
   }
   .status { min-height: 1.2em; color: var(--error-color, #db4437); font-size: 0.9em; }
   .help { font-size: 12px; color: var(--secondary-text-color); }
@@ -370,6 +411,13 @@ function brandImage(className) {
   return image;
 }
 
+function showPress(button) {
+  button.addEventListener("pointerdown", () => {
+    button.classList.add("pressed");
+    window.setTimeout(() => button.classList.remove("pressed"), 320);
+  });
+}
+
 function iconButton(className, iconName) {
   const button = document.createElement("button");
   button.type = "button";
@@ -378,6 +426,7 @@ function iconButton(className, iconName) {
   icon.icon = iconName;
   icon.setAttribute("icon", iconName);
   button.append(icon);
+  showPress(button);
   return button;
 }
 
@@ -556,6 +605,8 @@ class AlquranCloudCard extends HTMLElement {
     stop.className = "action stop";
     this._playButton = play;
     this._stopButton = stop;
+    showPress(play);
+    showPress(stop);
     actions.append(play, stop);
     body.append(
       this._status,
