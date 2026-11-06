@@ -36,6 +36,8 @@ flowchart TD
 
 **Media browser.** Open **Media**, then **Al Quran Cloud**. Pick a reciter, then a surah, then an ayah such as `001:001`. Home Assistant plays that one MP3 from the Al Quran Cloud CDN, for example `https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3`. Favorite reciters are listed first and marked with a star. This path does not join a range, repeat it, or open the TV page.
 
+![Al Quran Cloud in the media browser](docs/alquran-cloud-as-media-source.png)
+
 **Joined audio.** The card or `alquran_cloud.play`, with the web app off, downloads the ayahs in the range and joins them into one cached file. That file plays on any media player, including a Cast speaker.
 
 **TV web app.** The same play action with the web app on opens the bundled Quran page on an LG webOS set, a Samsung TV, or an Android TV added with the Android Debug Bridge integration. Home Assistant does not build an MP4. The page shows the ayah and reports the reciter, surah, and ayah back to the card. The Android TV Remote integration does not open this page.
