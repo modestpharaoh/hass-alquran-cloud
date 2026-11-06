@@ -12,9 +12,33 @@ This project is an independent Home Assistant integration. It is not affiliated 
   <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=modestpharaoh&repository=hass-alquran-cloud&category=integration"><img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="HACS logo: open this repository in HACS"></a>
 </p>
 
-Play on a Home Assistant media player, including a Cast speaker, or hand a surah to a TV browser. The domain is `alquran_cloud`. Reciter ids are edition strings such as `ar.alafasy`.
+Play on a Home Assistant media player, including a Cast speaker, browse one ayah under Media, or hand a surah to a TV browser. The domain is `alquran_cloud`. Reciter ids are edition strings such as `ar.alafasy`.
 
-Audio mode downloads the ayah MP3s and joins them into one cached file. That file plays on any media player. The web app does not build an MP4. Home Assistant opens the bundled Quran player in an LG, Samsung, or Android TV browser and leaves playback there.
+## Three ways to play
+
+The integration adds **Al Quran Cloud** to the media browser, in the same list as Radio Browser. It also joins a passage for a speaker, and it can open the Quran page on a TV.
+
+```mermaid
+flowchart TD
+  integration["Al Quran Cloud"]
+  integration --> browser["Media browser"]
+  integration --> audio["Joined audio"]
+  integration --> webapp["TV web app"]
+  browser --> ayah["Reciter, then surah, then one ayah"]
+  ayah --> anyPlayer["Any media player"]
+  audio --> file["One cached MP3 for the range"]
+  file --> speaker["Speaker or Cast"]
+  webapp --> page["Quran page in the TV browser"]
+  page --> lg["LG webOS"]
+  page --> samsung["Samsung"]
+  page --> android["Android TV with ADB"]
+```
+
+**Media browser.** Open **Media**, then **Al Quran Cloud**. Pick a reciter, then a surah, then an ayah such as `001:001`. Home Assistant plays that one MP3 from the Al Quran Cloud CDN, for example `https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3`. Favorite reciters are listed first and marked with a star. This path does not join a range, repeat it, or open the TV page.
+
+**Joined audio.** The card or `alquran_cloud.play`, with the web app off, downloads the ayahs in the range and joins them into one cached file. That file plays on any media player, including a Cast speaker.
+
+**TV web app.** The same play action with the web app on opens the bundled Quran page on an LG webOS set, a Samsung TV, or an Android TV added with the Android Debug Bridge integration. Home Assistant does not build an MP4. The page shows the ayah and reports the reciter, surah, and ayah back to the card. The Android TV Remote integration does not open this page.
 
 <br clear="right">
 
@@ -95,7 +119,7 @@ The card is also added to Settings → Dashboards → Resources when Lovelace us
 
 The public Al Quran Cloud API lists the free Arabic verse-by-verse recitations. The integration loads that list. Each reciter’s bitrate comes from the API, then every ayah MP3 is built from the global ayah number.
 
-The media browser still opens one public ayah MP3, for example `https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3`. The play action does not. It builds one cached MP3 for the range, under `.cache/alquran_cloud/audio/`. **Joined audio cache (days)** decides how long that file is kept. The default is 7 days. Playing it again refreshes that age. The first build of a long surah can take several minutes. A notification stays up while ffmpeg works.
+The play action does not stream those ayah files one by one. It builds one cached MP3 for the range, under `.cache/alquran_cloud/audio/`. **Joined audio cache (days)** decides how long that file is kept. The default is 7 days. Playing it again refreshes that age. The first build of a long surah can take several minutes. A notification stays up while ffmpeg works.
 
 Speeds other than 1 are written into the cached audio file. Repeat plays that file the requested number of times. Continue to the next surah is available only for a full surah. Loop starts the original surah or range again, and it is off unless you turn it on. While a speaker is playing, the card shows the requested range, such as `001:005`, or the surah line with its ayah count when the range runs through the last ayah. Names and labels follow the integration display language, Arabic or English. The volume row sits under the media player and shows the level, such as `42%`, just before the increase button.
 
