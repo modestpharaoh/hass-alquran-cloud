@@ -15,15 +15,22 @@ from homeassistant.core import HomeAssistant
 
 from .api import Catalog, QuranApiError
 from .const import (
+    CONF_PLAYBACK_SPEED,
+    DEFAULT_PLAYBACK_SPEED,
     DOMAIN,
     ID_AYAH,
     ID_CHAPTER,
     ID_RECITER,
+    LANG_ARABIC,
     MIME_TYPE_MP3,
+    arabic_ayah_word,
+    coerce_speed,
+    get_cache_days,
     get_display_language,
     get_favorite_reciter_ids,
 )
 from .coordinator import QuranCoordinator
+from .video import LocalMediaError, arabic_indic, prepare_playback, revelation_bilingual
 
 
 async def async_get_media_source(hass: HomeAssistant) -> AlquranCloudMediaSource:
@@ -61,24 +68,53 @@ class AlquranCloudMediaSource(MediaSource):
         return get_display_language(self.entry.options)
 
     async def async_resolve_media(self, item: MediaSourceItem) -> PlayMedia:
-        """Resolve an ayah identifier to a streaming MP3."""
+        """Resolve an ayah or a full surah to an MP3."""
         if self.entry.state is not ConfigEntryState.LOADED:
             raise Unresolvable("Al Quran Cloud is not ready")
         parsed = _parse_identifier(item.identifier)
-        if parsed is None or parsed[1] is None or parsed[2] is None:
+        if parsed is None or parsed[1] is None:
             raise Unresolvable(f"Invalid media identifier: {item.identifier}")
-        reciter_id, chapter, ayah = parsed
+        reciter_id, chapter, ayah, full = parsed
         catalog = self.catalog
-        if catalog.get_reciter(reciter_id) is None:
+        reciter = catalog.get_reciter(reciter_id)
+        if reciter is None:
             raise Unresolvable(f"Unknown reciter: {reciter_id}")
         info = catalog.get_chapter(chapter)
-        if info is None or ayah < 1 or ayah > info.verses_count:
+        if info is None:
+            raise Unresolvable(f"Unknown surah: {chapter}")
+        if full:
+            return await self._resolve_full_surah(catalog, reciter, info)
+        if ayah is None or ayah < 1 or ayah > info.verses_count:
             raise Unresolvable(f"Unknown ayah: {chapter}:{ayah}")
         try:
             url = await self.coordinator.api.ayah_audio_url(catalog, reciter_id, chapter, ayah)
         except QuranApiError as err:
             raise Unresolvable(str(err)) from err
         return PlayMedia(url, MIME_TYPE_MP3)
+
+    async def _resolve_full_surah(self, catalog: Catalog, reciter: Any, chapter: Any) -> PlayMedia:
+        """Build or reuse the joined surah, then return its local URL."""
+        options = self.entry.options or {}
+        try:
+            speed = coerce_speed(options.get(CONF_PLAYBACK_SPEED, DEFAULT_PLAYBACK_SPEED))
+        except ValueError as err:
+            raise Unresolvable(str(err)) from err
+        try:
+            prepared = await prepare_playback(
+                self.hass,
+                self.entry.runtime_data.store,
+                catalog=catalog,
+                reciter=reciter,
+                chapter=chapter,
+                start_ayah=1,
+                end_ayah=chapter.verses_count,
+                speed=speed,
+                cache_days=get_cache_days(options),
+                api=self.coordinator.api,
+            )
+        except LocalMediaError as err:
+            raise Unresolvable(str(err)) from err
+        return PlayMedia(prepared.url, MIME_TYPE_MP3)
 
     async def async_browse_media(self, item: MediaSourceItem) -> BrowseMediaSource:
         """Return browsable reciters, surahs, and ayahs."""
@@ -92,8 +128,8 @@ class AlquranCloudMediaSource(MediaSource):
         parsed = _parse_identifier(identifier)
         if parsed is None:
             raise BrowseError(f"Unknown media identifier: {identifier}")
-        reciter_id, chapter, ayah = parsed
-        if ayah is not None:
+        reciter_id, chapter, ayah, full = parsed
+        if ayah is not None or full:
             raise BrowseError("Ayahs cannot be expanded")
         reciter = catalog.get_reciter(reciter_id)
         if reciter is None:
@@ -169,7 +205,19 @@ class AlquranCloudMediaSource(MediaSource):
         )
 
     def _browse_ayahs(self, reciter: Any, chapter: Any, language: str) -> BrowseMediaSource:
+        full_title = _full_surah_title(chapter, language)
         children = [
+            BrowseMediaSource(
+                domain=DOMAIN,
+                identifier=f"{ID_RECITER}/{reciter.id}/{ID_CHAPTER}/{chapter.number}/full",
+                media_class=MediaClass.MUSIC,
+                media_content_type=MIME_TYPE_MP3,
+                title=full_title,
+                can_play=True,
+                can_expand=False,
+            )
+        ]
+        children.extend(
             BrowseMediaSource(
                 domain=DOMAIN,
                 identifier=(
@@ -182,7 +230,7 @@ class AlquranCloudMediaSource(MediaSource):
                 can_expand=False,
             )
             for ayah in range(1, chapter.verses_count + 1)
-        ]
+        )
         return BrowseMediaSource(
             domain=DOMAIN,
             identifier=f"{ID_RECITER}/{reciter.id}/{ID_CHAPTER}/{chapter.number}",
@@ -196,8 +244,28 @@ class AlquranCloudMediaSource(MediaSource):
         )
 
 
-def _parse_identifier(identifier: str | None) -> tuple[str, int | None, int | None] | None:
-    """Parse reciter/{edition}/chapter/{n}/ayah/{a}."""
+def _full_surah_title(chapter: Any, language: str) -> str:
+    """Name one whole surah with its count and revelation place."""
+    arabic = language == LANG_ARABIC
+    name = (chapter.name_ar if arabic else chapter.name_en) or chapter.name_en or chapter.name_ar
+    count = int(chapter.verses_count)
+    if arabic:
+        count_text = f"{arabic_indic(count)} {arabic_ayah_word(count)}"
+        _english, place = revelation_bilingual(getattr(chapter, "revelation_place", "") or "")
+    else:
+        unit = "ayah" if count == 1 else "ayahs"
+        count_text = f"{count} {unit}"
+        place, _arabic = revelation_bilingual(getattr(chapter, "revelation_place", "") or "")
+    parts = [f"{int(chapter.number):03d}", name, count_text]
+    if place:
+        parts.append(place)
+    return " · ".join(parts)
+
+
+def _parse_identifier(
+    identifier: str | None,
+) -> tuple[str, int | None, int | None, bool] | None:
+    """Parse reciter/{edition}/chapter/{n}/ayah/{a} or a trailing full."""
     if not identifier:
         return None
     parts = [part for part in identifier.split("/") if part]
@@ -206,9 +274,13 @@ def _parse_identifier(identifier: str | None) -> tuple[str, int | None, int | No
     reciter_id = parts[1]
     chapter: int | None = None
     ayah: int | None = None
+    full = False
     index = 2
     while index < len(parts):
         key = parts[index]
+        if key == "full" and index + 1 == len(parts):
+            full = True
+            break
         if index + 1 >= len(parts):
             return None
         try:
@@ -222,4 +294,4 @@ def _parse_identifier(identifier: str | None) -> tuple[str, int | None, int | No
         else:
             return None
         index += 2
-    return reciter_id, chapter, ayah
+    return reciter_id, chapter, ayah, full

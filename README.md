@@ -34,7 +34,7 @@ flowchart TD
   page --> android["Android TV with ADB"]
 ```
 
-**Media browser.** Open **Media**, then **Al Quran Cloud**. Pick a reciter, then a surah, then an ayah such as `001:001`. Home Assistant plays that one MP3 from the Al Quran Cloud CDN, for example `https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3`. Favorite reciters are listed first and marked with a star. This path does not join a range, repeat it, or open the TV page.
+**Media browser.** Open **Media**, then **Al Quran Cloud**. Pick a reciter, then a surah. The first card names that surah, its ayah count, and whether it is Meccan or Medinan, in English or Arabic. It plays the joined recording of that whole surah on the media player you picked, using the same cache as joined audio. If the file is not cached yet, Home Assistant builds it and then plays it. The cards under it, such as `001:001`, still play one MP3 from the Al Quran Cloud CDN, for example `https://cdn.islamic.network/quran/audio/128/ar.alafasy/1.mp3`. Favorite reciters are listed first and marked with a star. This path does not open the TV page.
 
 ![Al Quran Cloud in the media browser](docs/alquran-cloud-as-media-source.png)
 

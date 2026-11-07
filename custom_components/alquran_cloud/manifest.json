@@ -11,5 +11,5 @@
   "issue_tracker": "https://github.com/modestpharaoh/hass-quran-com/issues",
   "loggers": ["custom_components.alquran_cloud"],
   "requirements": [],
-  "version": "0.1.33"
+  "version": "0.1.35"
 }
