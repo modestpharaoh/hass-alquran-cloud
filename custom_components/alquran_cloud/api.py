@@ -66,6 +66,15 @@ class Chapter:
         ]
         return " · ".join(part for part in parts if part)
 
+    def playing_title(self, ayah: int, language: str = "english") -> str:
+        """Return the surah title with the ayah now playing."""
+        title = self.display_title(language)
+        number = int(ayah or 0)
+        if number < 1:
+            return title
+        mark = f"آية {number}" if language == LANG_ARABIC else f"Ayah {number}"
+        return f"{title} · {mark}"
+
     def ayah_title(self, ayah: int, language: str = "english") -> str:
         """Return a label for one ayah."""
         name = self.name_ar if language == "arabic" else self.name_en

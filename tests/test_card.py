@@ -29,7 +29,7 @@ vm.runInContext(`
   const document = { createElement() { return {}; } };
 ` + fs.readFileSync(process.argv[1], "utf8") + `
   globalThis.__card = {
-    playbackLine, integrationLanguage, mediaPlayers, sessionFor,
+    playbackLine, integrationLanguage, mediaPlayers, sessionFor, canSeek, seekFraction,
     playbackClock, formatTime, strings, AlquranCloudCard
   };
 `, context);
@@ -117,6 +117,21 @@ card.AlquranCloudCard.prototype._paintSessionPill.call({
   _status: { textContent: "" }
 }, text, { webapp: true, live: true }, true);
 check("a reporting page is green", pill.className === "state-pill live");
+card.AlquranCloudCard.prototype._paintSessionPill.call({
+  _statePill: pill,
+  _status: { textContent: "" }
+}, text, { webapp: true, live: true, playing: false }, true);
+check("a paused page is amber", pill.className === "state-pill paused");
+check("seek feature is the second bit", card.canSeek(2) === true && card.canSeek(1) === false);
+check("seek follows the reading direction", card.seekFraction(25, 100, false) === 0.25 && card.seekFraction(25, 100, true) === 0.75);
+const seekCalls = [];
+card.AlquranCloudCard.prototype._seekTo.call({
+  _player: { value: "media_player.vlc" },
+  _progressDuration: 80,
+  _hass: { callService() { seekCalls.push([].slice.call(arguments)); } },
+  _playerState() { return { attributes: { media_position_updated_at: "t0" } }; }
+}, 12.5);
+check("seek asks the player", seekCalls.length === 1 && seekCalls[0][0] === "media_player" && seekCalls[0][1] === "media_seek" && seekCalls[0][2].entity_id === "media_player.vlc" && seekCalls[0][2].seek_position === 12.5);
 card.AlquranCloudCard.prototype._paintSessionPill.call({
   _statePill: pill,
   _status: { textContent: "The page did not answer." }

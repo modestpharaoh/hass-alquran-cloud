@@ -3,6 +3,7 @@ const BRAND_ICON = "/alquran_cloud_brand/icon.svg";
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 const VIDEO_PLATFORMS = ["webostv", "samsungtv", "samsungtv_smart", "samsungtv_tizen", "androidtv"];
 const PAUSE = 1;
+const SEEK = 2;
 const VOLUME_SET = 4;
 const VOLUME_STEP = 1024;
 const PLAY = 16384;
@@ -47,6 +48,7 @@ const STRINGS = {
     mushaf: "Madinah Mushaf",
     ayah: "ayah",
     ayahs: "ayahs",
+    seek: "Seek",
   },
   ar: {
     dir: "rtl",
@@ -87,6 +89,7 @@ const STRINGS = {
     mushaf: "مصحف المدينة",
     ayah: "آية",
     ayahs: "آيات",
+    seek: "انتقال",
   },
 };
 
@@ -255,6 +258,16 @@ function pad3(value) {
   return String(value).padStart(3, "0");
 }
 
+function canSeek(features) {
+  return Boolean(features & SEEK);
+}
+
+function seekFraction(offset, width, rtl) {
+  if (!width) return 0;
+  const fromLeft = Math.min(1, Math.max(0, offset / width));
+  return rtl ? 1 - fromLeft : fromLeft;
+}
+
 function playbackLine(session, lang) {
   const title = inLanguage(session.title || "", lang) || session.verse_key || "";
   const start = Number(session.start_ayah);
@@ -298,6 +311,7 @@ const STYLE = `
     background: rgba(255, 255, 255, 0.16);
   }
   .state-pill.live { background: #026634; color: #ffffff; }
+  .state-pill.paused { background: #e65100; color: #ffffff; }
   .state-pill.silent { background: #b00020; color: #ffffff; }
   .stage > button.sync {
     position: absolute; top: 10px; inset-inline-end: 10px; z-index: 1;
@@ -319,8 +333,14 @@ const STYLE = `
   .progress { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
   .progress[hidden] { display: none; }
   .progress .time { min-width: 2.4em; font-size: 0.75rem; font-variant-numeric: tabular-nums; opacity: 0.9; }
-  .progress .track { flex: 1; height: 4px; border-radius: 999px; background: rgba(255, 255, 255, 0.22); overflow: hidden; }
-  .progress .fill { height: 100%; width: 0%; border-radius: 999px; background: #7dcea0; }
+  .progress .track {
+    position: relative; flex: 1; height: 4px; margin: 8px 0; border-radius: 999px;
+    background: rgba(255, 255, 255, 0.22);
+  }
+  .progress .track::before { content: ""; position: absolute; left: 0; right: 0; top: -8px; height: 20px; }
+  .progress .track.seekable { cursor: pointer; }
+  .progress .track.seekable:hover { height: 6px; margin: 7px 0; }
+  .progress .fill { height: 100%; width: 0%; border-radius: 999px; background: #7dcea0; pointer-events: none; }
   .transport { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; }
   .transport button {
     flex: 0 0 40px; width: 40px; height: 40px; padding: 0; border: none; border-radius: 50%;
@@ -449,6 +469,10 @@ class AlquranCloudCard extends HTMLElement {
     this._config = {};
     this._built = false;
     this._progressTimer = null;
+    this._progressDuration = 0;
+    this._shownPosition = 0;
+    this._seekHold = null;
+    this._seeking = false;
     this.attachShadow({ mode: "open" });
   }
 
@@ -518,9 +542,14 @@ class AlquranCloudCard extends HTMLElement {
     this._elapsed.className = "time";
     const track = document.createElement("div");
     track.className = "track";
+    track.tabIndex = -1;
+    track.setAttribute("role", "slider");
+    track.setAttribute("aria-valuemin", "0");
     this._fill = document.createElement("div");
     this._fill.className = "fill";
     track.append(this._fill);
+    this._bindSeek(track);
+    this._track = track;
     this._remaining = document.createElement("span");
     this._remaining.className = "time";
     progress.append(this._elapsed, track, this._remaining);
@@ -829,7 +858,12 @@ class AlquranCloudCard extends HTMLElement {
       }
       if (this._status.textContent === text.pageSilent) this._status.textContent = "";
     }
-    this._paintSessionPill(text, session, webapp);
+    this._paintSessionPill(
+      text,
+      session,
+      webapp,
+      Boolean(state && state.state === "paused")
+    );
     if (session) {
       const lang = integrationLanguage(this._hass);
       this._reciterLine.textContent = inLanguage(session.artist || "", lang);
@@ -863,7 +897,8 @@ class AlquranCloudCard extends HTMLElement {
       const lang = integrationLanguage(this._hass);
       this._surahLine.textContent = playbackLine(session, lang);
     } else if (session) {
-      this._surahLine.textContent = session.title || session.verse_key;
+      const lang = integrationLanguage(this._hass);
+      this._surahLine.textContent = inLanguage(session.title || "", lang) || session.verse_key || "";
     }
     this._renderProgress(state, session);
     if (state && state.state === "playing" && session && !session.webapp) this._startProgressClock();
@@ -881,12 +916,18 @@ class AlquranCloudCard extends HTMLElement {
     this._progressTimer = null;
   }
 
-  _paintSessionPill(text, session, webapp) {
+  _paintSessionPill(text, session, webapp, audioPaused) {
     if (!this._statePill) return;
-    this._statePill.className = "state-pill";
-    if (!webapp || !session || !session.webapp) return;
-    const silent = (this._status && this._status.textContent === text.pageSilent) || !session.live;
-    this._statePill.className = silent ? "state-pill silent" : "state-pill live";
+    let name = "state-pill";
+    if (webapp && session && session.webapp) {
+      const silent = (this._status && this._status.textContent === text.pageSilent) || !session.live;
+      if (silent) name = "state-pill silent";
+      else if (session.playing === false) name = "state-pill paused";
+      else name = "state-pill live";
+    } else if (audioPaused) {
+      name = "state-pill paused";
+    }
+    this._statePill.className = name;
   }
 
   _renderTransport(text, state, webapp) {
@@ -927,17 +968,125 @@ class AlquranCloudCard extends HTMLElement {
   _renderProgress(state, session) {
     if (session && session.webapp) {
       this._progress.hidden = true;
+      this._progressDuration = 0;
+      this._markSeekable(false);
       return;
     }
     const clock = playbackClock(state);
     if (!clock || clock.duration == null) {
       this._progress.hidden = true;
+      this._progressDuration = 0;
+      this._markSeekable(false);
       return;
     }
+    const features = (state && state.attributes && state.attributes.supported_features) || 0;
     this._progress.hidden = false;
-    this._elapsed.textContent = formatTime(clock.position);
-    this._remaining.textContent = formatTime(Math.max(0, clock.duration - clock.position));
-    this._fill.style.width = `${Math.min(100, (clock.position / clock.duration) * 100)}%`;
+    this._progressDuration = clock.duration;
+    this._markSeekable(canSeek(features));
+    let position = clock.position;
+    if (this._seekHold) {
+      const updated = (state && state.attributes && state.attributes.media_position_updated_at) || "";
+      const close = Math.abs(clock.position - this._seekHold.position) < 1.5;
+      const stale = Date.now() - this._seekHold.at > 4000;
+      const reported = updated !== this._seekHold.updatedAt;
+      if (!this._seeking && (close || stale || reported)) this._seekHold = null;
+      else position = this._seekHold.position;
+    }
+    this._showProgress(position, clock.duration);
+  }
+
+  _markSeekable(enabled) {
+    if (!this._track) return;
+    this._track.classList.toggle("seekable", enabled);
+    this._track.tabIndex = enabled ? 0 : -1;
+    const text = strings(this._hass);
+    this._track.title = enabled ? text.seek : "";
+    this._track.setAttribute("aria-disabled", enabled ? "false" : "true");
+  }
+
+  _showProgress(position, duration) {
+    const safe = Math.min(Math.max(0, position), duration);
+    this._shownPosition = safe;
+    this._elapsed.textContent = formatTime(safe);
+    this._remaining.textContent = formatTime(Math.max(0, duration - safe));
+    this._fill.style.width = `${Math.min(100, (safe / duration) * 100)}%`;
+    if (this._track) {
+      this._track.setAttribute("aria-valuemax", String(Math.round(duration)));
+      this._track.setAttribute("aria-valuenow", String(Math.round(safe)));
+    }
+  }
+
+  _bindSeek(track) {
+    track.addEventListener("pointerdown", (event) => {
+      if (!this._seekAllowed()) return;
+      this._seeking = true;
+      if (track.setPointerCapture) track.setPointerCapture(event.pointerId);
+      this._previewSeek(event);
+    });
+    track.addEventListener("pointermove", (event) => {
+      if (!this._seeking) return;
+      this._previewSeek(event);
+    });
+    track.addEventListener("pointerup", (event) => {
+      if (!this._seeking) return;
+      const seconds = this._previewSeek(event);
+      this._seeking = false;
+      if (seconds != null) this._seekTo(seconds);
+    });
+    track.addEventListener("pointercancel", () => {
+      this._seeking = false;
+    });
+    track.addEventListener("keydown", (event) => {
+      if (!this._seekAllowed() || !this._progressDuration) return;
+      if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+      event.preventDefault();
+      const towardEnd = event.key === "ArrowRight" ? 1 : -1;
+      const sign = this.dir === "rtl" ? -towardEnd : towardEnd;
+      const next = Math.min(
+        this._progressDuration,
+        Math.max(0, this._shownPosition + sign * 5)
+      );
+      this._showProgress(next, this._progressDuration);
+      this._seekTo(next);
+    });
+  }
+
+  _seekAllowed() {
+    return Boolean(this._track && this._track.classList.contains("seekable") && this._progressDuration > 0);
+  }
+
+  _positionStamp() {
+    const state = this._playerState();
+    return (state && state.attributes && state.attributes.media_position_updated_at) || "";
+  }
+
+  _previewSeek(event) {
+    const duration = this._progressDuration;
+    if (!duration || !this._track || !this._track.getBoundingClientRect) return null;
+    const rect = this._track.getBoundingClientRect();
+    const fraction = seekFraction(event.clientX - rect.left, rect.width, this.dir === "rtl");
+    const seconds = fraction * duration;
+    this._seekHold = {
+      position: seconds,
+      at: Date.now(),
+      updatedAt: this._seekHold ? this._seekHold.updatedAt : this._positionStamp(),
+    };
+    this._showProgress(seconds, duration);
+    return seconds;
+  }
+
+  _seekTo(seconds) {
+    const entity = this._player && this._player.value;
+    if (!entity || !this._hass) return;
+    const duration = this._progressDuration;
+    const position = duration > 0 ? Math.min(duration, Math.max(0, seconds)) : Math.max(0, seconds);
+    const state = this._playerState ? this._playerState() : null;
+    const updatedAt = (state && state.attributes && state.attributes.media_position_updated_at) || "";
+    this._seekHold = { position, at: Date.now(), updatedAt };
+    this._hass.callService("media_player", "media_seek", {
+      entity_id: entity,
+      seek_position: position,
+    });
   }
 
   _renderVolume(state) {

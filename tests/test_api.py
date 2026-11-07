@@ -137,3 +137,5 @@ def test_arabic_ayah_count_word():
     assert fatiha.display_title("arabic") == "001 · سُورَةُ ٱلْفَاتِحَةِ · 7 آيات · مكية"
     assert baqara.display_title("arabic") == "002 · سُورَةُ البَقَرَةِ · 286 آية · مدنية"
     assert fatiha.display_title() == "001 · Al-Faatiha · 7 ayahs · Meccan"
+    assert fatiha.playing_title(2) == "001 · Al-Faatiha · 7 ayahs · Meccan · Ayah 2"
+    assert fatiha.playing_title(2, "arabic") == "001 · سُورَةُ ٱلْفَاتِحَةِ · 7 آيات · مكية · آية 2"

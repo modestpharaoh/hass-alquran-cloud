@@ -377,5 +377,5 @@ async def test_webapp_ticket_queues_a_command_and_stores_a_report(hass: HomeAssi
     assert session.ayah == 2
     assert session.playing is True
     assert session.report_seq == 1
-    assert session.as_attr_dict()["title"] == "002:002 · Al-Baqarah"
+    assert session.as_attr_dict()["title"] == "002 · Al-Baqarah · 3 ayahs · Medinan · Ayah 2"
     assert manager.queue_transport("media_player.room", "play") is False
