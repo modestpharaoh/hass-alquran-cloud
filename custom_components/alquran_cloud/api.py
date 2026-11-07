@@ -9,7 +9,7 @@ from typing import Any
 
 from aiohttp import ClientError, ClientSession, ClientTimeout
 
-from .const import API_BASE, arabic_ayah_word, ayah_audio_url
+from .const import API_BASE, LANG_ARABIC, arabic_ayah_word, ayah_audio_url, revelation_bilingual
 
 _LOGGER = logging.getLogger(__name__)
 _TIMEOUT = ClientTimeout(total=30)
@@ -53,10 +53,18 @@ class Chapter:
     revelation_place: str = ""
 
     def display_title(self, language: str = "english") -> str:
-        """Return a short surah label."""
-        name = self.name_ar if language == "arabic" else self.name_en
-        unit = arabic_ayah_word(self.verses_count) if language == "arabic" else "ayahs"
-        return f"{self.number:03d} · {name} · {self.verses_count} {unit}"
+        """Return the surah number, name, ayah count, and revelation place."""
+        arabic = language == LANG_ARABIC
+        name = (self.name_ar if arabic else self.name_en) or self.name_en or self.name_ar
+        unit = arabic_ayah_word(self.verses_count) if arabic else "ayahs"
+        place_en, place_ar = revelation_bilingual(self.revelation_place or "")
+        parts = [
+            f"{self.number:03d}",
+            name,
+            f"{self.verses_count} {unit}",
+            place_ar if arabic else place_en,
+        ]
+        return " · ".join(part for part in parts if part)
 
     def ayah_title(self, ayah: int, language: str = "english") -> str:
         """Return a label for one ayah."""

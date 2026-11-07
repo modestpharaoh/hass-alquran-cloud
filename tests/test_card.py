@@ -29,7 +29,7 @@ vm.runInContext(`
   const document = { createElement() { return {}; } };
 ` + fs.readFileSync(process.argv[1], "utf8") + `
   globalThis.__card = {
-    arabicAyahWord, playbackLine, integrationLanguage, mediaPlayers, sessionFor,
+    playbackLine, integrationLanguage, mediaPlayers, sessionFor,
     playbackClock, formatTime, strings, AlquranCloudCard
   };
 `, context);
@@ -39,27 +39,19 @@ if (!card) throw new Error("card script did not load");
 function check(name, condition) {
   if (!condition) throw new Error(name);
 }
-check("seven", card.arabicAyahWord(7) === "آيات");
-check("two", card.arabicAyahWord(2) === "آيتان");
-check("two hundred six", card.arabicAyahWord(206) === "آيات");
-check("two hundred eighty six", card.arabicAyahWord(286) === "آية");
 const text = card.strings({ states: { "sensor.al_quran_cloud_active_sessions": {
   entity_id: "sensor.al_quran_cloud_active_sessions",
   attributes: { display_language: "english" }
 }}});
 check("full english surah line", card.playbackLine({
-  title: "002 · Al-Baqara", full_surah: true, start_ayah: 1, end_ayah: 286
-}, text, "en") === "002 · Al-Baqara · 286 ayahs");
-const arabic = card.strings({ states: { "sensor.al_quran_cloud_active_sessions": {
-  entity_id: "sensor.al_quran_cloud_active_sessions",
-  attributes: { display_language: "arabic" }
-}}});
+  title: "002 · Al-Baqara · 286 ayahs · Medinan", full_surah: true, start_ayah: 1, end_ayah: 286
+}, "en") === "002 · Al-Baqara · 286 ayahs · Medinan");
 check("full arabic surah line", card.playbackLine({
-  title: "001 · سُورَةُ الفَاتِحَةِ", full_surah: true, end_ayah: 7
-}, arabic, "ar") === "001 · سُورَةُ الفَاتِحَةِ · ٧ آيات");
+  title: "001 · سُورَةُ الفَاتِحَةِ · 7 آيات · مكية", full_surah: true, end_ayah: 7
+}, "ar") === "001 · سُورَةُ الفَاتِحَةِ · 7 آيات · مكية");
 check("partial range", card.playbackLine({
-  title: "001 · Al-Fatiha", full_surah: false, start_ayah: 1, end_ayah: 5
-}, text, "en") === "001:005 · Al-Fatiha");
+  title: "001 · Al-Fatiha · 7 ayahs · Meccan", full_surah: false, start_ayah: 1, end_ayah: 5
+}, "en") === "001 · Al-Fatiha · 7 ayahs · Meccan · 001:005");
 check("integration language wins", card.integrationLanguage({
   locale: { language: "en" },
   states: { "sensor.al_quran_cloud_active_sessions": {

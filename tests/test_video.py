@@ -72,21 +72,20 @@ def test_surah_tags_and_back_to_back_cues():
         Reciter("ar.alafasy", "Alafasy", "مشاري العفاسي", ""),
         Chapter(1, "Al-Faatiha", "سُورَةُ ٱلْفَاتِحَةِ", 7, "Meccan"),
     )
-    assert tags.title == "001 · Al-Faatiha · سُورَةُ ٱلْفَاتِحَةِ"
+    assert tags.title == "001 · Al-Faatiha · 7 ayahs · Meccan"
     assert "Alafasy" in tags.artist and "مشاري العفاسي" in tags.artist
     assert tags.album == "Madinah Mushaf · مصحف المدينة"
-    assert "7 ayahs · Meccan" in tags.comment
-    assert "٧ آيات · مكية" in tags.comment
+    assert tags.comment == "001 · سُورَةُ ٱلْفَاتِحَةِ · 7 آيات · مكية"
     long = surah_tags(
         Reciter("ar.alafasy", "Alafasy", "مشاري العفاسي", ""),
         Chapter(2, "Al-Baqara", "سُورَةُ البَقَرَةِ", 286, "Medinan"),
     )
-    assert "٢٨٦ آية · مدنية" in long.comment
+    assert long.comment == "002 · سُورَةُ البَقَرَةِ · 286 آية · مدنية"
     araf = surah_tags(
         Reciter("ar.alafasy", "Alafasy", "مشاري العفاسي", ""),
         Chapter(7, "Al-A'raaf", "سُورَةُ الأَعۡرَافِ", 206, "Meccan"),
     )
-    assert "٢٠٦ آيات · مكية" in araf.comment
+    assert araf.comment == "007 · سُورَةُ الأَعۡرَافِ · 206 آيات · مكية"
     cues = cues_from_durations([(1, 2.5), (2, 4.0)])
     assert cues[1].start == cues[0].end
 

@@ -47,7 +47,7 @@ async def test_browse_favorites_and_resolve():
     assert root.children[0].title.startswith("★")
     assert "Husary" in root.children[0].title
     chapters = await source.async_browse_media(MediaSourceItem("reciter/ar.alafasy"))
-    assert "Al-Fatihah" in chapters.children[0].title
+    assert chapters.children[0].title == "001 · Al-Fatihah · 2 ayahs · Meccan"
     ayahs = await source.async_browse_media(MediaSourceItem("reciter/ar.alafasy/chapter/1"))
     assert ayahs.children[0].title == "001 · Al-Fatihah · 2 ayahs · Meccan"
     assert ayahs.children[0].can_play is True
@@ -56,7 +56,7 @@ async def test_browse_favorites_and_resolve():
     assert [child.title for child in ayahs.children[1:]] == ["001:001", "001:002"]
     source.entry.options["display_language"] = "arabic"
     arabic = await source.async_browse_media(MediaSourceItem("reciter/ar.alafasy/chapter/1"))
-    assert arabic.children[0].title == "001 · الفاتحة · ٢ آيتان · مكية"
+    assert arabic.children[0].title == "001 · الفاتحة · 2 آيتان · مكية"
     media = await source.async_resolve_media(MediaSourceItem("reciter/ar.alafasy/chapter/1/ayah/2"))
     assert media.mime_type == MIME_TYPE_MP3
     assert media.url.endswith("/ar.alafasy/1_2.mp3")

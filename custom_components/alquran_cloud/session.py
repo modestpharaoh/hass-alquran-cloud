@@ -564,8 +564,7 @@ class PlaybackSessionManager:
         chapter = catalog.get_chapter(session.chapter) if catalog else None
         reciter = catalog.get_reciter(session.reciter_id) if catalog else None
         if chapter is not None:
-            name = (chapter.name_ar if arabic else chapter.name_en) or chapter.name_en or chapter.name_ar
-            session.title = f"{chapter.number:03d} · {name}"
+            session.title = chapter.display_title(language)
         if reciter is not None:
             artist = reciter.localized_name(language)
             if reciter.style and reciter.style not in artist:
@@ -699,7 +698,7 @@ class PlaybackSessionManager:
         session.control_ticket = secrets.token_urlsafe(12)
         session.expected_url = url
         session.marker = ""
-        session.title = self._video_title(chapter, session.start_ayah, session.end_ayah, language)
+        session.title = self._video_title(chapter, language)
         session.artist = reciter.localized_name(language)
         session.album = ""
         session.image_url = ""
@@ -803,11 +802,9 @@ class PlaybackSessionManager:
         if event is not None and not event.is_set():
             event.set()
 
-    def _video_title(self, chapter: Any, start_ayah: int, end_ayah: int, language: str) -> str:
-        title = chapter.display_title(language)
-        if start_ayah > 1 or end_ayah < chapter.verses_count:
-            return f"{title} · {start_ayah}–{end_ayah}"
-        return title
+    def _video_title(self, chapter: Any, language: str) -> str:
+        """Return the shared surah title for a web app session."""
+        return chapter.display_title(language)
 
     async def _async_launch_browser(
         self, session: PlaybackSession, url: str, *, blocking: bool

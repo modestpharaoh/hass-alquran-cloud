@@ -21,16 +21,14 @@ from .const import (
     ID_AYAH,
     ID_CHAPTER,
     ID_RECITER,
-    LANG_ARABIC,
     MIME_TYPE_MP3,
-    arabic_ayah_word,
     coerce_speed,
     get_cache_days,
     get_display_language,
     get_favorite_reciter_ids,
 )
 from .coordinator import QuranCoordinator
-from .video import LocalMediaError, arabic_indic, prepare_playback, revelation_bilingual
+from .video import LocalMediaError, prepare_playback
 
 
 async def async_get_media_source(hass: HomeAssistant) -> AlquranCloudMediaSource:
@@ -205,7 +203,7 @@ class AlquranCloudMediaSource(MediaSource):
         )
 
     def _browse_ayahs(self, reciter: Any, chapter: Any, language: str) -> BrowseMediaSource:
-        full_title = _full_surah_title(chapter, language)
+        full_title = chapter.display_title(language)
         children = [
             BrowseMediaSource(
                 domain=DOMAIN,
@@ -242,24 +240,6 @@ class AlquranCloudMediaSource(MediaSource):
             children_media_class=MediaClass.TRACK,
             children=children,
         )
-
-
-def _full_surah_title(chapter: Any, language: str) -> str:
-    """Name one whole surah with its count and revelation place."""
-    arabic = language == LANG_ARABIC
-    name = (chapter.name_ar if arabic else chapter.name_en) or chapter.name_en or chapter.name_ar
-    count = int(chapter.verses_count)
-    if arabic:
-        count_text = f"{arabic_indic(count)} {arabic_ayah_word(count)}"
-        _english, place = revelation_bilingual(getattr(chapter, "revelation_place", "") or "")
-    else:
-        unit = "ayah" if count == 1 else "ayahs"
-        count_text = f"{count} {unit}"
-        place, _arabic = revelation_bilingual(getattr(chapter, "revelation_place", "") or "")
-    parts = [f"{int(chapter.number):03d}", name, count_text]
-    if place:
-        parts.append(place)
-    return " · ".join(parts)
 
 
 def _parse_identifier(

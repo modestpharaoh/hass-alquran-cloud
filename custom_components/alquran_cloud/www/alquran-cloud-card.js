@@ -255,33 +255,13 @@ function pad3(value) {
   return String(value).padStart(3, "0");
 }
 
-function arabicIndic(number) {
-  return String(number).replace(/[0-9]/g, (digit) => "٠١٢٣٤٥٦٧٨٩"[digit]);
-}
-
-function arabicAyahWord(count) {
-  const last = Math.abs(Number(count) || 0) % 100;
-  if (last === 2) return "آيتان";
-  if (last >= 3 && last <= 10) return "آيات";
-  return "آية";
-}
-
-function playbackLine(session, text, lang) {
-  const title = inLanguage(session.title || "", lang);
+function playbackLine(session, lang) {
+  const title = inLanguage(session.title || "", lang) || session.verse_key || "";
   const start = Number(session.start_ayah);
   const end = Number(session.end_ayah);
-  const names = title.replace(/^\d{1,3}\s*·\s*/, "");
-  if (session.full_surah && Number.isFinite(end)) {
-    const unit = lang === "ar" ? arabicAyahWord(end) : (end === 1 ? text.ayah : text.ayahs);
-    const count = lang === "ar" ? arabicIndic(end) : String(end);
-    const surah = title || session.verse_key || "";
-    return `${surah} · ${count} ${unit}`;
-  }
-  if (Number.isFinite(start) && Number.isFinite(end)) {
-    const range = `${pad3(start)}:${pad3(end)}`;
-    return names ? `${range} · ${names}` : range;
-  }
-  return title || session.verse_key || "";
+  if (session.full_surah || !Number.isFinite(start) || !Number.isFinite(end)) return title;
+  const range = pad3(start) + ":" + pad3(end);
+  return title ? title + " · " + range : range;
 }
 
 const STYLE = `
@@ -881,7 +861,7 @@ class AlquranCloudCard extends HTMLElement {
     const session = sessionFor(this._hass, this._player && this._player.value);
     if (session && !session.webapp) {
       const lang = integrationLanguage(this._hass);
-      this._surahLine.textContent = playbackLine(session, strings(this._hass), lang);
+      this._surahLine.textContent = playbackLine(session, lang);
     } else if (session) {
       this._surahLine.textContent = session.title || session.verse_key;
     }

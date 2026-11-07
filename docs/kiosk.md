@@ -118,7 +118,7 @@ webOS 4 has no emoji font. Toolbar, transport, and favorite marks are inline SVG
 
 The page uses Noto Sans Arabic for Latin and Arabic. The TV’s own font draws lam-alef and hamza alef as separate letters, so words such as السور and الإعدادات fall apart. Letter spacing on Arabic is left at 0 for the same reason.
 
-The surah line includes the surah number, the ayah count, and whether it is Meccan or Medinan (`revelationType` from Al Quran Cloud). Arabic uses مكية and مدنية, with a middle dot before the count. The count word follows the last two digits: 3–10 uses آيات (الفاتحة: 7 آيات), 2 uses آيتان, and every other ending uses آية (البقرة: 286 آية, الأعراف: 206 آيات). English uses the count as `7 ayahs`. The title and the control buttons step up at 1600px, 2200px, and 3200px wide, so a 4K panel is larger than a 1080p one.
+A surah is named with its number, name, ayah count, and Meccan or Medinan, in that order, on the info bar and in the surah list. English is `001 · Al-Faatiha · 7 ayahs · Meccan`. Arabic is `002 · سُورَةُ البَقَرَةِ · 286 آية · مدنية`. The count word follows the last two digits: 3–10 uses آيات, 2 uses آيتان, and every other ending uses آية. The current ayah stays after that title. The title and the control buttons step up at 1600px, 2200px, and 3200px wide, so a 4K panel is larger than a 1080p one.
 
 ## Decisions
 

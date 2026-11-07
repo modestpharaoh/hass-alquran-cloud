@@ -17,7 +17,6 @@ from aiohttp import ClientError, ClientSession, ClientTimeout, web
 from .const import (
     DEFAULT_CACHE_DAYS,
     DOMAIN,
-    arabic_ayah_word,
     ayah_audio_url,
     ayah_image_url,
     coerce_speed,
@@ -290,7 +289,6 @@ async def probe_duration(path: Path) -> float | None:
 
 MUSHAF_EN = "Madinah Mushaf"
 MUSHAF_AR = "مصحف المدينة"
-_ARABIC_INDIC = str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩")
 
 
 @dataclass(slots=True)
@@ -312,36 +310,14 @@ class SurahTags:
     comment: str
 
 
-def arabic_indic(number: int) -> str:
-    """Return a number with Arabic-Indic digits."""
-    return str(number).translate(_ARABIC_INDIC)
-
-
-def revelation_bilingual(place: str) -> tuple[str, str]:
-    """Return the revelation place in English and Arabic."""
-    key = place.strip().lower()
-    if key in {"meccan", "makkah", "mecca"}:
-        return "Meccan", "مكية"
-    if key in {"medinan", "madinah", "medina"}:
-        return "Medinan", "مدنية"
-    text = place.strip()
-    return text, text
-
-
 def surah_tags(reciter: Any, chapter: Any) -> SurahTags:
     """Build the bilingual title, reciter, mushaf, and surah info."""
-    title = f"{chapter.number:03d} · {chapter.name_en} · {chapter.name_ar}"
     artist = " · ".join(part for part in (reciter.name_en, reciter.name_ar) if part)
-    place_en, place_ar = revelation_bilingual(getattr(chapter, "revelation_place", "") or "")
-    comment = (
-        f"{chapter.verses_count} ayahs · {place_en} · "
-        f"{arabic_indic(chapter.verses_count)} {arabic_ayah_word(chapter.verses_count)} · {place_ar}"
-    )
     return SurahTags(
-        title=title,
+        title=chapter.display_title("english"),
         artist=artist,
         album=f"{MUSHAF_EN} · {MUSHAF_AR}",
-        comment=comment,
+        comment=chapter.display_title("arabic"),
     )
 
 

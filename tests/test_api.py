@@ -134,6 +134,6 @@ def test_arabic_ayah_count_word():
     assert arabic_ayah_word(286) == "آية"
     fatiha = Chapter(1, "Al-Faatiha", "سُورَةُ ٱلْفَاتِحَةِ", 7, "Meccan")
     baqara = Chapter(2, "Al-Baqara", "سُورَةُ البَقَرَةِ", 286, "Medinan")
-    assert fatiha.display_title("arabic") == "001 · سُورَةُ ٱلْفَاتِحَةِ · 7 آيات"
-    assert baqara.display_title("arabic") == "002 · سُورَةُ البَقَرَةِ · 286 آية"
-    assert fatiha.display_title() == "001 · Al-Faatiha · 7 ayahs"
+    assert fatiha.display_title("arabic") == "001 · سُورَةُ ٱلْفَاتِحَةِ · 7 آيات · مكية"
+    assert baqara.display_title("arabic") == "002 · سُورَةُ البَقَرَةِ · 286 آية · مدنية"
+    assert fatiha.display_title() == "001 · Al-Faatiha · 7 ayahs · Meccan"

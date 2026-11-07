@@ -685,78 +685,40 @@ function updateLanguageButton() {
   const button = document.getElementById("btn-language");
   button.textContent = language === "en" ? "\u0627\u0644\u0639\u0631\u0628\u064A\u0629" : "English";
 }
-function surahDisplayName() {
-  if (!surahData) return "";
-  return language === "ar" ? surahData.name : surahData.englishName;
-}
-function surahNumberLabel() {
-  const number = Number(surahData && surahData.number);
-  if (!number) return "";
-  const text = String(number);
-  return text.length >= 3 ? text : ("000" + text).slice(-3);
-}
-function surahPlace() {
-  const kind = String(surahData && surahData.revelationType || "").toLowerCase();
-  if (kind === "meccan") return t("meccan");
-  if (kind === "medinan") return t("medinan");
-  return "";
-}
-function surahHeading() {
+function surahTitle(data) {
+  const surah = data || surahData;
+  if (!surah) return "";
+  const number = Number(surah.number);
+  const name = language === "ar" ? surah.name : surah.englishName;
+  const count = Number(surah.numberOfAyahs);
+  const kind = String(surah.revelationType || "").toLowerCase();
+  let place = "";
+  if (kind === "meccan" || kind === "makkah" || kind === "mecca") place = t("meccan");
+  else if (kind === "medinan" || kind === "madinah" || kind === "medina") place = t("medinan");
   const parts = [];
-  const number = surahNumberLabel();
-  const name = surahDisplayName();
-  const place = surahPlace();
-  if (number) parts.push(number);
+  if (number) {
+    const text = String(number);
+    parts.push(text.length >= 3 ? text : ("000" + text).slice(-3));
+  }
   if (name) parts.push(name);
+  if (count) parts.push(String(count) + " " + (language === "ar" ? ayahCountWord(count) : t("ayahs")));
   if (place) parts.push(place);
   return parts.join(" \xB7 ");
-}
-function surahCountPhrase() {
-  const count = Number(surahData && surahData.numberOfAyahs);
-  if (!count) return "";
-  return "".concat(count, " ").concat(t("ayahs"));
-}
-function ayahCountNode(count) {
-  const wrap = document.createElement("span");
-  wrap.className = "ayah-count";
-  wrap.dir = "rtl";
-  const number = document.createElement("span");
-  number.dir = "ltr";
-  number.textContent = String(count);
-  wrap.append(number, " ".concat(ayahCountWord(count)));
-  return wrap;
 }
 function refreshPlaybackInfo() {
   notePlayback();
   if (!surahData) return;
-  if (language === "ar") {
-    const parts = [surahHeading(), " \xB7 ", ayahCountNode(surahData.numberOfAyahs)];
-    if (isBismillah) {
-      parts.push(" \u2014 ".concat(t("bismillah")));
-    } else if (surahData.ayahs && surahData.ayahs[currentAyahIndex]) {
-      const ayah = surahData.ayahs[currentAyahIndex].numberInSurah;
-      parts.push(" - \u0622\u064A\u0629 ".concat(ayah));
-      if (surahAudioMode) parts.push(" \xB7 \u062A\u0644\u0627\u0648\u0629 \u0627\u0644\u0633\u0648\u0631\u0629 \u0643\u0627\u0645\u0644\u0629");
-    } else {
-      return;
-    }
-    if (playbackNote) parts.push(" (".concat(t(playbackNote), ")"));
-    infoBar.replaceChildren(...parts);
-    return;
-  }
-  let text;
-  const count = surahCountPhrase();
-  const head = count ? "".concat(surahHeading(), " \xB7 ").concat(count) : surahHeading();
+  const head = surahTitle();
+  let text = "";
   if (isBismillah) {
-    text = "".concat(head, " \u2014 ").concat(t("bismillah"));
+    text = head + " \u2014 " + t("bismillah");
   } else if (surahData.ayahs && surahData.ayahs[currentAyahIndex]) {
-    const ayah = surahData.ayahs[currentAyahIndex];
-    const vars = { head, ayah: ayah.numberInSurah };
-    text = surahAudioMode ? t("fullSurahLine", vars) : t("ayahLine", vars);
+    const ayah = surahData.ayahs[currentAyahIndex].numberInSurah;
+    text = t(surahAudioMode ? "fullSurahLine" : "ayahLine", { head, ayah });
   } else {
     return;
   }
-  if (playbackNote) text += " (".concat(t(playbackNote), ")");
+  if (playbackNote) text += " (" + t(playbackNote) + ")";
   infoBar.textContent = text;
 }
 function applyLanguage() {
@@ -994,18 +956,8 @@ function renderSurahGrid(list) {
     if (!Number.isInteger(surahNumber) || !Number.isInteger(ayahCount)) return;
     const card = document.createElement("div");
     card.className = "item-card ".concat(surahNumber === currentSurah ? "active" : "");
-    const primary = language === "ar" ? s.name : s.englishName;
     const secondary = language === "ar" ? s.englishName : s.name;
-    card.innerHTML = '\n          <span class="item-num">#'.concat(surahNumber, '</span>\n          <span class="item-title">').concat(escapeHtml(primary), '</span>\n          <span class="item-sub">').concat(escapeHtml(secondary), "</span>\n        ");
-    if (language === "ar") {
-      const line = document.createElement("div");
-      line.className = "item-title-row";
-      const title = card.querySelector(".item-title");
-      title.replaceWith(line);
-      line.append(title, ayahCountNode(ayahCount));
-    } else {
-      card.querySelector(".item-sub").textContent = "".concat(secondary, " (").concat(ayahCount, " ").concat(t("ayahs"), ")");
-    }
+    card.innerHTML = '\n          <span class="item-num">#'.concat(surahNumber, '</span>\n          <span class="item-title">').concat(escapeHtml(surahTitle(s)), '</span>\n          <span class="item-sub">').concat(escapeHtml(secondary), "</span>\n        ");
     card.onclick = () => {
       closeModals();
       currentSurah = surahNumber;

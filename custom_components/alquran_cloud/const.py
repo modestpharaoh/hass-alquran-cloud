@@ -124,6 +124,17 @@ def arabic_ayah_word(count: int) -> str:
     return "آية"
 
 
+def revelation_bilingual(place: str) -> tuple[str, str]:
+    """Return the revelation place in English and Arabic."""
+    key = place.strip().lower()
+    if key in {"meccan", "makkah", "mecca"}:
+        return "Meccan", "مكية"
+    if key in {"medinan", "madinah", "medina"}:
+        return "Medinan", "مدنية"
+    text = place.strip()
+    return text, text
+
+
 def get_display_language(options: dict) -> str:
     """Return the configured display language."""
     value = options.get(CONF_DISPLAY_LANGUAGE, DEFAULT_DISPLAY_LANGUAGE)
