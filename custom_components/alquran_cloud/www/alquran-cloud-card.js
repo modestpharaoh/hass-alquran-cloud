@@ -6,20 +6,24 @@ const PAUSE = 1;
 const SEEK = 2;
 const VOLUME_SET = 4;
 const VOLUME_STEP = 1024;
+const PLAY_MEDIA = 512;
 const PLAY = 16384;
 
 const STRINGS = {
   en: {
     dir: "ltr",
     title: "Al Quran Cloud",
-    player: "Media player",
+    player: "Media Player",
     reciter: "Reciter",
     surah: "Surah",
-    startAyah: "Start ayah",
-    endAyah: "End ayah",
+    startAyah: "From ayah",
+    endAyah: "To ayah",
     throughLast: "Through the last ayah",
-    repeat: "Repeat",
-    speed: "Playback speed",
+    repeat: "Repeat Count",
+    speed: "Playback Speed",
+    repeatNote: "* Note: Repeat applies to the entire selected range as a loop, not verse-by-verse.",
+    speedNote: "* Note: Playback speed stays at 1× on older LG webOS and Samsung TVs. Speakers and newer TVs use the chosen speed.",
+    settings: "Playback Settings",
     continueSurah: "Continue to the next surah",
     loop: "Loop",
     webapp: "Web app",
@@ -34,6 +38,7 @@ const STRINGS = {
     background: "Background video",
     onTv: "On the TV",
     tvRequired: "Choose an LG, Samsung, or Android TV.",
+    speakerRequired: "Choose a speaker that can play the stream.",
     play: "Play",
     pause: "Pause",
     resume: "Resume",
@@ -58,9 +63,12 @@ const STRINGS = {
     surah: "السورة",
     startAyah: "من الآية",
     endAyah: "إلى الآية",
+    settings: "إعدادات التشغيل",
     throughLast: "حتى آخر الآية",
     repeat: "التكرار",
     speed: "سرعة التشغيل",
+    repeatNote: "* ملاحظة: التكرار يعمل لكامل المقطع/المجال المحدد، وليس آية بآية.",
+    speedNote: "* ملاحظة: السرعة تبقى 1× على شاشات LG webOS الأقدم وعلى Samsung قبل Tizen 6.5. السماعات والشاشات الأحدث تستخدم السرعة المختارة.",
     continueSurah: "متابعة السورة التالية",
     loop: "إعادة التشغيل",
     webapp: "تطبيق الويب",
@@ -75,6 +83,7 @@ const STRINGS = {
     background: "فيديو الخلفية",
     onTv: "على التلفاز",
     tvRequired: "اختر تلفاز LG أو Samsung أو Android.",
+    speakerRequired: "اختر سماعة يمكنها تشغيل البث.",
     play: "تشغيل",
     pause: "إيقاف مؤقت",
     resume: "استئناف",
@@ -164,7 +173,12 @@ function mediaPlayers(hass, videoOnly) {
   if (!hass || !hass.states) return [];
   return Object.values(hass.states)
     .filter((state) => state.entity_id && state.entity_id.startsWith("media_player."))
-    .filter((state) => !videoOnly || VIDEO_PLATFORMS.includes(playerPlatform(hass, state.entity_id)))
+    .filter((state) => {
+      const tv = VIDEO_PLATFORMS.includes(playerPlatform(hass, state.entity_id));
+      if (videoOnly) return tv;
+      const features = Number((state.attributes && state.attributes.supported_features) || 0);
+      return !tv && Boolean(features & PLAY_MEDIA);
+    })
     .map((state) => ({
       id: state.entity_id,
       label: (state.attributes && state.attributes.friendly_name) || state.entity_id,
@@ -385,7 +399,51 @@ const STYLE = `
     min-width: 3em; text-align: end; font-variant-numeric: tabular-nums;
     font-size: 0.9rem; color: var(--primary-text-color);
   }
-  .switch { flex-direction: row; align-items: center; justify-content: space-between; font-size: 14px; color: var(--primary-text-color); }
+  label .name { display: flex; flex-direction: row; align-items: center; gap: 6px; }
+  label .name ha-icon { --mdc-icon-size: 16px; }
+  .pair { display: flex; gap: 8px; }
+  .pair > label {
+    flex: 1 1 0; min-width: 0; gap: 2px; margin: 0;
+    padding: 6px 10px 8px; border-radius: 12px;
+    border: 1px solid var(--divider-color, rgba(127, 127, 127, 0.4));
+    background: rgba(0, 0, 0, 0.18);
+  }
+  .pair .name { min-width: 0; }
+  .pair select, .pair input[type="number"] {
+    border: none; background: transparent; padding: 0; min-width: 0;
+  }
+  .notes { display: flex; flex-direction: column; gap: 2px; }
+  .note {
+    margin: 0; font-size: 11px; line-height: 1.4;
+    color: var(--secondary-text-color);
+  }
+  .settings-head {
+    font-size: 12px; font-weight: 650; letter-spacing: 0.02em;
+    color: var(--secondary-text-color);
+  }
+  .toggle-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 8px; }
+  .toggle {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    width: 100%; margin: 0; padding: 10px 12px; border-radius: 14px; text-align: start;
+    border: 1px solid rgba(2, 102, 52, 0.55);
+    background: rgba(0, 0, 0, 0.18); color: var(--primary-text-color);
+    font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .toggle .name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .toggle .label { min-width: 0; }
+  .toggle ha-icon { --mdc-icon-size: 18px; flex: 0 0 auto; }
+  .toggle .switch {
+    position: relative; flex: 0 0 auto; width: 36px; height: 20px; margin-inline-start: auto;
+    border-radius: 999px; background: #3a3f3c;
+  }
+  .toggle .thumb {
+    position: absolute; inset-inline-start: 2px; top: 2px; width: 16px; height: 16px;
+    border-radius: 50%; background: #c5c9c6;
+    transition: inset-inline-start 140ms ease, background 140ms ease;
+  }
+  .toggle.on .switch { background: #026634; }
+  .toggle.on .thumb { inset-inline-start: 18px; background: #ffffff; }
+  .toggle:focus-visible { outline: 2px solid #026634; outline-offset: 3px; }
   .actions { display: flex; gap: 8px; }
   button.action {
     flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -416,6 +474,7 @@ const STYLE = `
     background: var(--primary-text-color); color: var(--card-background-color, #fff); transform: scale(0.9);
   }
   .status { min-height: 1.2em; color: var(--error-color, #db4437); font-size: 0.9em; }
+  .status:empty { display: none; }
   .help { font-size: 12px; color: var(--secondary-text-color); }
 `;
 
@@ -452,6 +511,55 @@ function iconButton(className, iconName) {
   icon.icon = iconName;
   icon.setAttribute("icon", iconName);
   button.append(icon);
+  showPress(button);
+  return button;
+}
+
+function haIcon(iconName) {
+  const icon = document.createElement("ha-icon");
+  icon.icon = iconName;
+  icon.setAttribute("icon", iconName);
+  return icon;
+}
+
+function chipButton(className, iconName) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `toggle ${className}`;
+  const name = document.createElement("span");
+  name.className = "name";
+  const text = document.createElement("span");
+  text.className = "label";
+  name.append(haIcon(iconName), text);
+  const track = document.createElement("span");
+  track.className = "switch";
+  track.setAttribute("aria-hidden", "true");
+  const thumb = document.createElement("span");
+  thumb.className = "thumb";
+  track.append(thumb);
+  button.append(name, track);
+  let on = false;
+  Object.defineProperty(button, "checked", {
+    get() { return on; },
+    set(value) {
+      on = Boolean(value);
+      button.classList.toggle("on", on);
+      button.setAttribute("aria-pressed", on ? "true" : "false");
+    },
+  });
+  button.checked = false;
+  button.addEventListener("click", () => {
+    button.checked = !button.checked;
+    button.dispatchEvent(new Event("change"));
+  });
+  return button;
+}
+
+function actionButton(className, iconName) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `action ${className}`;
+  button.append(haIcon(iconName), document.createElement("span"));
   showPress(button);
   return button;
 }
@@ -599,22 +707,27 @@ class AlquranCloudCard extends HTMLElement {
     body.className = "body";
     this._status = document.createElement("div");
     this._status.className = "status";
-    this._player = this._field(text.player, "select", "player");
-    this._reciter = this._field(text.reciter, "select", "reciter");
-    this._surah = this._field(text.surah, "select", "surah");
-    this._start = this._field(text.startAyah, "select", "start");
-    this._end = this._field(text.endAyah, "select", "end");
-    this._repeat = this._field(text.repeat, "input", "repeat");
+    this._player = this._field(text.player, "select", "player", "mdi:speaker");
+    this._reciter = this._field(text.reciter, "select", "reciter", "mdi:account-voice");
+    this._surah = this._field(text.surah, "select", "surah", "mdi:book-open-variant");
+    this._start = this._field(text.startAyah, "select", "start", "mdi:playlist-play");
+    this._end = this._field(text.endAyah, "select", "end", "mdi:playlist-check");
+    this._repeat = this._field(text.repeat, "input", "repeat", "mdi:repeat-once");
     this._repeat.type = "number";
     this._repeat.min = "1";
     this._repeat.max = "20";
-    this._speed = this._field(text.speed, "select", "speed");
+    this._speed = this._field(text.speed, "select", "speed", "mdi:speedometer");
     this._speed.innerHTML = SPEEDS.map((speed) => `<option value="${speed}">${speed}×</option>`).join("");
-    this._continue = this._check("continue");
-    this._loop = this._check("loop");
-    this._webapp = this._check("webapp");
+    this._settingsHead = document.createElement("div");
+    this._settingsHead.className = "settings-head";
+    this._continue = chipButton("continue", "mdi:skip-next");
+    this._loop = chipButton("loop", "mdi:repeat");
+    this._webapp = chipButton("webapp", "mdi:television");
     this._webapp.addEventListener("change", () => this._onWebappChange());
-    this._background = this._check("background");
+    this._background = chipButton("background", "mdi:image-multiple");
+    this._settings = document.createElement("div");
+    this._settings.className = "toggle-grid";
+    this._settings.append(this._continue, this._loop, this._webapp, this._background);
     this._help = document.createElement("div");
     this._help.className = "help";
     const volume = document.createElement("div");
@@ -649,33 +762,37 @@ class AlquranCloudCard extends HTMLElement {
     this._volume = volume;
     const actions = document.createElement("div");
     actions.className = "actions";
-    const play = document.createElement("button");
-    play.type = "button";
-    play.className = "action play";
-    const stop = document.createElement("button");
-    stop.type = "button";
-    stop.className = "action stop";
+    const play = actionButton("play", "mdi:play");
+    const stop = actionButton("stop", "mdi:stop");
     this._playButton = play;
     this._stopButton = stop;
-    showPress(play);
-    showPress(stop);
-    actions.append(play, stop);
+    actions.append(stop, play);
+    const rangeRow = document.createElement("div");
+    rangeRow.className = "pair";
+    rangeRow.append(this._start.parentElement, this._end.parentElement);
+    const paceRow = document.createElement("div");
+    paceRow.className = "pair";
+    paceRow.append(this._repeat.parentElement, this._speed.parentElement);
+    this._repeatNote = document.createElement("p");
+    this._repeatNote.className = "note";
+    this._speedNote = document.createElement("p");
+    this._speedNote.className = "note";
+    const notes = document.createElement("div");
+    notes.className = "notes";
+    notes.append(this._repeatNote, this._speedNote);
     body.append(
-      this._status,
-      this._player.parentElement,
-      volume,
-      this._reciter.parentElement,
-      this._surah.parentElement,
-      this._start.parentElement,
-      this._end.parentElement,
-      this._repeat.parentElement,
-      this._speed.parentElement,
-      this._continue.parentElement,
-      this._loop.parentElement,
-      this._webapp.parentElement,
-      this._background.parentElement,
+      this._settingsHead,
+      this._settings,
       this._help,
       actions,
+      this._player.parentElement,
+      volume,
+      this._status,
+      this._reciter.parentElement,
+      this._surah.parentElement,
+      rangeRow,
+      paceRow,
+      notes,
     );
     card.append(header, stage, body);
     this.shadowRoot.replaceChildren(style, card);
@@ -692,24 +809,17 @@ class AlquranCloudCard extends HTMLElement {
     this._loadReciters();
   }
 
-  _field(labelText, tag, className) {
+  _field(labelText, tag, className, iconName) {
     const label = document.createElement("label");
-    label.textContent = labelText;
+    const name = document.createElement("span");
+    name.className = "name";
+    const text = document.createElement("span");
+    text.textContent = labelText;
+    name.append(haIcon(iconName), text);
     const control = document.createElement(tag);
     control.className = className;
-    label.append(control);
+    label.append(name, control);
     return control;
-  }
-
-  _check(className) {
-    const label = document.createElement("label");
-    label.className = "switch";
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    input.className = className;
-    const span = document.createElement("span");
-    label.append(span, input);
-    return input;
   }
 
   _applyConfig() {
@@ -729,9 +839,11 @@ class AlquranCloudCard extends HTMLElement {
 
   _onWebappChange() {
     const before = this._player.value;
+    if (!this._webapp.checked) this._background.checked = false;
     this._loadPlayers();
-    if (this._webapp.checked && before && !this._player.value) {
-      this._status.textContent = strings(this._hass).tvRequired;
+    if (before && !this._player.value) {
+      const text = strings(this._hass);
+      this._status.textContent = this._webapp.checked ? text.tvRequired : text.speakerRequired;
     }
     this._syncRange();
     this._update();
@@ -810,10 +922,10 @@ class AlquranCloudCard extends HTMLElement {
 
   _syncRange() {
     const full = this._isFullSurah();
-    this._continue.parentElement.hidden = !full;
+    this._continue.hidden = !full;
     if (!full) this._continue.checked = false;
     const video = Boolean(this._webapp && this._webapp.checked);
-    this._background.parentElement.hidden = !video;
+    this._background.hidden = !video;
   }
 
   _playerState() {
@@ -828,18 +940,26 @@ class AlquranCloudCard extends HTMLElement {
     this._loadPlayers();
     this.dir = text.dir;
     this._title.textContent = text.title;
-    this._playButton.textContent = text.play;
-    this._stopButton.textContent = text.stop;
-    this._continue.parentElement.querySelector("span").textContent = text.continueSurah;
-    this._loop.parentElement.querySelector("span").textContent = text.loop;
-    this._background.parentElement.hidden = !this._webapp.checked;
-    this._webapp.parentElement.querySelector("span").textContent = text.webapp;
-    this._background.parentElement.querySelector("span").textContent = text.background;
-    this._help.textContent = this._webapp.checked
-      ? this._player.value
-        ? text.webappHelp
-        : text.tvRequired
-      : "";
+    this._settingsHead.textContent = text.settings;
+    const fieldLabel = (control) => control.parentElement.querySelector(".name span");
+    fieldLabel(this._player).textContent = text.player;
+    fieldLabel(this._reciter).textContent = text.reciter;
+    fieldLabel(this._surah).textContent = text.surah;
+    fieldLabel(this._start).textContent = text.startAyah;
+    fieldLabel(this._end).textContent = text.endAyah;
+    fieldLabel(this._repeat).textContent = text.repeat;
+    fieldLabel(this._speed).textContent = text.speed;
+    this._repeatNote.textContent = text.repeatNote;
+    this._speedNote.textContent = text.speedNote;
+    this._playButton.querySelector("span").textContent = text.play;
+    this._stopButton.querySelector("span").textContent = text.stop;
+    this._continue.querySelector(".label").textContent = text.continueSurah;
+    this._loop.querySelector(".label").textContent = text.loop;
+    this._webapp.querySelector(".label").textContent = text.webapp;
+    this._background.querySelector(".label").textContent = text.background;
+    this._background.hidden = !this._webapp.checked;
+    this._help.hidden = !this._webapp.checked;
+    this._help.textContent = this._webapp.checked ? text.webappHelp : "";
     const state = this._playerState();
     const session = sessionFor(this._hass, this._player.value);
     const webapp = Boolean((session && session.webapp) || this._webapp.checked);
@@ -1281,33 +1401,51 @@ class AlquranCloudCardEditor extends HTMLElement {
       style.textContent = `${STYLE} .hidden { display: none; }`;
       const form = document.createElement("div");
       form.className = "body";
-      this._player = this._labeled("player");
-      this._reciter = this._labeled("reciter");
-      this._surah = this._labeled("surah");
-      this._start = this._labeled("start");
-      this._end = this._labeled("end");
-      this._repeat = this._labeled("repeat", "input");
+      this._player = this._labeled("player", "mdi:speaker");
+      this._reciter = this._labeled("reciter", "mdi:account-voice");
+      this._surah = this._labeled("surah", "mdi:book-open-variant");
+      this._start = this._labeled("start", "mdi:playlist-play");
+      this._end = this._labeled("end", "mdi:playlist-check");
+      this._repeat = this._labeled("repeat", "mdi:repeat-once", "input");
       this._repeat.control.type = "number";
       this._repeat.control.min = "1";
       this._repeat.control.max = "20";
-      this._speed = this._labeled("speed");
+      this._speed = this._labeled("speed", "mdi:speedometer");
       this._speed.control.innerHTML = SPEEDS.map((speed) => `<option value="${speed}">${speed}×</option>`).join("");
-      this._continue = this._switch("continue");
-      this._loop = this._switch("loop");
-      this._webapp = this._switch("webapp");
-      this._background = this._switch("background");
+      const rangeRow = document.createElement("div");
+      rangeRow.className = "pair";
+      rangeRow.append(this._start.label, this._end.label);
+      const paceRow = document.createElement("div");
+      paceRow.className = "pair";
+      paceRow.append(this._repeat.label, this._speed.label);
+      this._repeatNote = document.createElement("p");
+      this._repeatNote.className = "note";
+      this._speedNote = document.createElement("p");
+      this._speedNote.className = "note";
+      const notes = document.createElement("div");
+      notes.className = "notes";
+      notes.append(this._repeatNote, this._speedNote);
+      this._settingsHead = document.createElement("div");
+      this._settingsHead.className = "settings-head";
+      this._continue = this._chip("continue", "mdi:skip-next");
+      this._loop = this._chip("loop", "mdi:repeat");
+      this._webapp = this._chip("webapp", "mdi:television");
+      this._background = this._chip("background", "mdi:image-multiple");
+      this._settings = document.createElement("div");
+      this._settings.className = "toggle-grid";
+      this._settings.append(this._continue.label, this._loop.label, this._webapp.label, this._background.label);
+      this._help = document.createElement("div");
+      this._help.className = "help";
       form.append(
+        this._settingsHead,
+        this._settings,
+        this._help,
         this._player.label,
         this._reciter.label,
         this._surah.label,
-        this._start.label,
-        this._end.label,
-        this._repeat.label,
-        this._speed.label,
-        this._continue.label,
-        this._loop.label,
-        this._webapp.label,
-        this._background.label,
+        rangeRow,
+        paceRow,
+        notes,
       );
       this.shadowRoot.replaceChildren(style, form);
       this._bind();
@@ -1320,29 +1458,28 @@ class AlquranCloudCardEditor extends HTMLElement {
     }
   }
 
-  _labeled(className, tag = "select") {
+  _labeled(className, iconName, tag = "select") {
     const label = document.createElement("label");
+    const name = document.createElement("span");
+    name.className = "name";
     const text = document.createElement("span");
+    name.append(haIcon(iconName), text);
     const control = document.createElement(tag);
     control.className = className;
-    label.append(text, control);
+    label.append(name, control);
     return { label, text, control };
   }
 
-  _switch(className) {
-    const label = document.createElement("label");
-    label.className = "switch";
-    const text = document.createElement("span");
-    const control = document.createElement("input");
-    control.type = "checkbox";
-    control.className = className;
-    label.append(text, control);
-    return { label, text, control };
+  _chip(className, iconName) {
+    const control = chipButton(className, iconName);
+    return { label: control, text: control.querySelector(".label"), control };
   }
 
   _paint() {
     const text = strings(this._hass);
     const config = this._config;
+    this.dir = text.dir;
+    this._settingsHead.textContent = text.settings;
     this._player.text.textContent = text.player;
     this._reciter.text.textContent = text.reciter;
     this._surah.text.textContent = text.surah;
@@ -1350,10 +1487,14 @@ class AlquranCloudCardEditor extends HTMLElement {
     this._end.text.textContent = text.endAyah;
     this._repeat.text.textContent = text.repeat;
     this._speed.text.textContent = text.speed;
+    this._repeatNote.textContent = text.repeatNote;
+    this._speedNote.textContent = text.speedNote;
     this._continue.text.textContent = text.continueSurah;
     this._loop.text.textContent = text.loop;
     this._webapp.text.textContent = text.webapp;
     this._background.text.textContent = text.background;
+    this._help.hidden = !Boolean(config.webapp);
+    this._help.textContent = config.webapp ? text.webappHelp : "";
     fillSelect(this._reciter.control, this._reciters, config.reciter_id || "", "");
     fillSelect(this._surah.control, this._surahs, config.surah || "", "");
     fillSelect(this._start.control, this._ayahs, config.start_ayah || 1, "");
@@ -1419,7 +1560,8 @@ class AlquranCloudCardEditor extends HTMLElement {
       const show = this._webapp.control.checked;
       const players = mediaPlayers(this._hass, show);
       const patch = { webapp: show };
-      if (show && this._config.entity && !players.some((item) => item.id === this._config.entity)) {
+      if (!show) patch.background_video = false;
+      if (this._config.entity && !players.some((item) => item.id === this._config.entity)) {
         patch.entity = undefined;
       }
       this._commit(patch);

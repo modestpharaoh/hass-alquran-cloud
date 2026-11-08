@@ -32,8 +32,8 @@ background_video: false
 | `surah` | 1–114. Changing reciter or surah resets the range to the full surah. |
 | `start_ayah` | First ayah. Default 1. |
 | `end_ayah` | Last ayah. Empty means through the last ayah. |
-| `repeat` | 1–20. |
-| `speed` | 0.5, 0.75, 1, 1.25, 1.5, 1.75, or 2. |
+| `repeat` | 1–20. Plays the whole selected range that many times, not one ayah at a time. |
+| `speed` | 0.5, 0.75, 1, 1.25, 1.5, 1.75, or 2. Older LG webOS and Samsung sets before Tizen 6.5 stay at 1×. |
 | `continue_surah` | Shown only for a full surah. Ignored for a range. |
 | `loop` | Off unless set. Replays the original surah or range. Sent to the web app as `loop`. |
 | `webapp` | Opens the Quran web app on a TV instead of playing a joined MP3. |
@@ -45,7 +45,9 @@ Reciters and surahs are loaded from the `media-source://alquran_cloud` catalog, 
 
 ## Player list
 
-Every `media_player` entity is listed by `friendly_name`, sorted with `localeCompare`. Entity id is the fallback label.
+Every listed player is shown by `friendly_name`, sorted with `localeCompare`. Entity id is the fallback label.
+
+With **Web app** off, the list keeps speakers that can play a Home Assistant stream: `supported_features` includes play media, and the platform is not `webostv`, `samsungtv`, `samsungtv_smart`, `samsungtv_tizen`, or `androidtv`. Chromecast stays in this list when it can play the joined MP3.
 
 With **Web app** on, the list keeps only these platforms, read from `hass.entities[id].platform`:
 
@@ -55,9 +57,11 @@ With **Web app** on, the list keeps only these platforms, read from `hass.entiti
 - `samsungtv_tizen`
 - `androidtv`
 
-`cast` is not in that list. Chromecast can play the joined MP3, and it can show a Lovelace dashboard, but it cannot open this player URL. See [Integration architecture](integration.md).
+`cast` is not in that TV list. Chromecast can play the joined MP3, and it can show a Lovelace dashboard, but it cannot open this player URL. See [Integration architecture](integration.md).
 
-If the saved `entity` is not one of those TVs, the select is cleared and the card says to choose an LG, Samsung, or Android TV. Turning the web app off restores the full player list.
+If the saved `entity` is not one of those TVs, the select is cleared and the card says to choose an LG, Samsung, or Android TV. Turning the web app off clears a saved TV and says to choose a speaker.
+
+Playback settings sit under the stage, under the heading Playback Settings / إعدادات التشغيل. Continue, Loop, Web app, and Background video are outlined switch cards: the icon and label lead, and the switch follows. A switch is green while on and grey while off. Background video is shown only while Web app is on. Stop and Play follow that note, then the media player and volume, then reciter and surah. From ayah and To ayah share one row. Repeat count and playback speed share the next row. Two short notes under that row say that repeat covers the whole range, and that older LG webOS and Samsung TVs stay at 1×.
 
 ## While it plays
 

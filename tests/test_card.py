@@ -65,12 +65,12 @@ const hass = {
     "media_player.speaker": { platform: "sonos" }
   },
   states: {
-    "media_player.living_room": { entity_id: "media_player.living_room", attributes: { friendly_name: "Living room" } },
-    "media_player.speaker": { entity_id: "media_player.speaker", attributes: { friendly_name: "Speaker" } }
+    "media_player.living_room": { entity_id: "media_player.living_room", attributes: { friendly_name: "Living room", supported_features: 512 } },
+    "media_player.speaker": { entity_id: "media_player.speaker", attributes: { friendly_name: "Speaker", supported_features: 512 } }
   }
 };
 check("web app lists only a TV", card.mediaPlayers(hass, true).map((item) => item.id).join(",") === "media_player.living_room");
-check("audio lists every player", card.mediaPlayers(hass, false).length === 2);
+check("audio lists only the speaker", card.mediaPlayers(hass, false).map((item) => item.id).join(",") === "media_player.speaker");
 check("session lookup", card.sessionFor({
   states: { "sensor.al_quran_cloud_active_sessions": {
     entity_id: "sensor.al_quran_cloud_active_sessions",
