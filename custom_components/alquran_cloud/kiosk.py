@@ -324,6 +324,25 @@ def _query_int(request: web.Request, name: str) -> int | None:
         return None
 
 
+def _query_flag(request: web.Request, name: str) -> bool | None:
+    raw = _query_value(request, name).strip().lower()
+    if raw in {"1", "true", "yes"}:
+        return True
+    if raw in {"0", "false", "no"}:
+        return False
+    return None
+
+
+def _query_speed(request: web.Request) -> float | None:
+    raw = _query_value(request, "speed").strip()
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        return None
+
+
 def _query_playing(request: web.Request) -> bool | None:
     raw = _query_value(request, "playing").strip().lower()
     if raw in {"1", "true", "yes"}:
@@ -359,11 +378,25 @@ async def serve_control(request: web.Request, hass) -> web.Response:
         surah=_query_int(request, "surah"),
         ayah=_query_int(request, "ayah"),
         playing=_query_playing(request),
+        auto_surah=_query_flag(request, "auto_surah"),
+        loop=_query_flag(request, "loop"),
+        background_video=_query_flag(request, "background_video"),
+        repeat=_query_int(request, "repeat"),
+        speed=_query_speed(request),
     )
     command = await sessions.wait_transport(session)
     if sessions.get_session(session.entity_id) is not session:
         return web.json_response({"command": ""}, status=404)
-    return web.json_response({"command": command}, headers={"Cache-Control": "no-store"})
+    body: dict[str, object] = {"command": command}
+    if command == "settings":
+        body["settings"] = {
+            "continue_surah": bool(session.continue_surah),
+            "loop": bool(session.loop),
+            "background_video": bool(session.background_video),
+            "repeat": int(session.repeat),
+            "speed": session.speed,
+        }
+    return web.json_response(body, headers={"Cache-Control": "no-store"})
 
 
 def _refuse(

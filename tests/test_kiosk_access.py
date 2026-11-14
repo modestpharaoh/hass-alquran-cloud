@@ -207,4 +207,46 @@ async def test_control_route_stays_local_and_returns_one_command():
     assert session.report["surah"] == 2
     assert session.report["ayah"] == 3
     assert session.report["playing"] is True
+    session.commands = ["settings"]
+    session.continue_surah = True
+    session.loop = False
+    session.background_video = True
+    session.repeat = 4
+    session.speed = 1.25
+    settings = await view.get(
+        Request(
+            "127.0.0.1",
+            {
+                "ticket": session.control_ticket,
+                "reciter": "ar.alafasy",
+                "surah": "1",
+                "ayah": "1",
+                "playing": "0",
+                "auto_surah": "1",
+                "loop": "0",
+                "background_video": "1",
+                "repeat": "4",
+                "speed": "1.25",
+            },
+        ),
+        "control",
+    )
+    assert json.loads(settings.body) == {
+        "command": "settings",
+        "settings": {
+            "continue_surah": True,
+            "loop": False,
+            "background_video": True,
+            "repeat": 4,
+            "speed": 1.25,
+        },
+    }
+    assert session.report["auto_surah"] is True
+    assert session.report["loop"] is False
+    assert session.report["background_video"] is True
+    assert session.report["repeat"] == 4
+    assert session.report["speed"] == 1.25
+    assert session.report["surah"] == 1
+    assert session.report["ayah"] == 1
+    assert session.report["playing"] is False
     assert session.commands == []

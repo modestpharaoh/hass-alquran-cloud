@@ -80,6 +80,11 @@ TRANSPORT_SCHEMA = vol.Schema(
     {
         vol.Optional(ATTR_ENTITY_ID): cv.entity_ids,
         vol.Required(ATTR_COMMAND): vol.In(sorted(TRANSPORT_COMMANDS)),
+        vol.Optional(ATTR_CONTINUE_SURAH): cv.boolean,
+        vol.Optional(ATTR_LOOP): cv.boolean,
+        vol.Optional(ATTR_BACKGROUND_VIDEO): cv.boolean,
+        vol.Optional(ATTR_REPEAT): vol.All(vol.Coerce(int), vol.Range(min=MIN_REPEAT, max=MAX_REPEAT)),
+        vol.Optional(ATTR_SPEED): vol.All(vol.Coerce(float), vol.In(PLAYBACK_SPEEDS)),
     },
     extra=vol.ALLOW_EXTRA,
 )
@@ -207,6 +212,21 @@ def async_register_services(
     async def async_handle_transport(call: ServiceCall) -> None:
         command = str(call.data[ATTR_COMMAND])
         for entity_id in await _entity_ids(call):
+            if command == "settings":
+                values = {
+                    key: call.data[key]
+                    for key in (
+                        ATTR_CONTINUE_SURAH,
+                        ATTR_LOOP,
+                        ATTR_BACKGROUND_VIDEO,
+                        ATTR_REPEAT,
+                        ATTR_SPEED,
+                    )
+                    if key in call.data
+                }
+                if not values or not sessions.queue_settings(entity_id, values):
+                    raise HomeAssistantError("The Quran page is not open on that player.")
+                continue
             if not sessions.queue_transport(entity_id, command):
                 raise HomeAssistantError("The Quran page is not open on that player.")
 

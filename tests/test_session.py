@@ -378,4 +378,48 @@ async def test_webapp_ticket_queues_a_command_and_stores_a_report(hass: HomeAssi
     assert session.playing is True
     assert session.report_seq == 1
     assert session.as_attr_dict()["title"] == "002 · Al-Baqarah · 3 ayahs · Medinan · Ayah 2"
+    assert manager.queue_settings(
+        "media_player.lg",
+        {"background_video": True, "continue_surah": True, "loop": True, "repeat": 4, "speed": 1.25},
+    )
+    assert session.commands == ["settings"]
+    assert session.background_video is True
+    assert session.continue_surah is True
+    assert session.loop is True
+    assert session.repeat == 4
+    assert session.speed == 1.25
+    manager.apply_report(
+        session,
+        reciter_id="ar.alafasy",
+        surah=1,
+        ayah=1,
+        playing=False,
+        auto_surah=False,
+        loop=False,
+        background_video=False,
+        repeat=1,
+        speed=0.5,
+    )
+    assert session.background_video is True
+    assert session.continue_surah is True
+    assert session.speed == 1.25
+    assert await manager.wait_transport(session, timeout=0.05) == "settings"
+    manager.apply_report(
+        session,
+        reciter_id="ar.alafasy",
+        surah=1,
+        ayah=1,
+        playing=True,
+        auto_surah=False,
+        loop=False,
+        background_video=False,
+        repeat=2,
+        speed=0.75,
+    )
+    assert session.background_video is False
+    assert session.continue_surah is False
+    assert session.loop is False
+    assert session.repeat == 2
+    assert session.speed == 0.75
+    assert manager.queue_settings("media_player.room", {"loop": True}) is False
     assert manager.queue_transport("media_player.room", "play") is False

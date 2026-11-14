@@ -801,6 +801,11 @@ class AlquranCloudCard extends HTMLElement {
     this._surah.addEventListener("change", () => this._loadAyahs());
     this._start.addEventListener("change", () => this._syncRange());
     this._end.addEventListener("change", () => this._syncRange());
+    this._continue.addEventListener("change", () => this._pushPageSetting({ continue_surah: this._continue.checked }));
+    this._loop.addEventListener("change", () => this._pushPageSetting({ loop: this._loop.checked }));
+    this._background.addEventListener("change", () => this._pushPageSetting({ background_video: this._background.checked }));
+    this._repeat.addEventListener("change", () => this._pushPageSetting({ repeat: clampRepeat(this._repeat.value) }));
+    this._speed.addEventListener("change", () => this._pushPageSetting({ speed: Number(this._speed.value) }));
     play.addEventListener("click", () => this._play());
     stop.addEventListener("click", () => this._stop());
     this._built = true;
@@ -920,11 +925,17 @@ class AlquranCloudCard extends HTMLElement {
     return start <= 1 && end >= this._ayahCount && this._ayahCount > 0;
   }
 
+  _pageOpen() {
+    const session = this._hass && sessionFor(this._hass, this._player && this._player.value);
+    return Boolean(session && session.webapp);
+  }
+
   _syncRange() {
     const full = this._isFullSurah();
-    this._continue.hidden = !full;
-    if (!full) this._continue.checked = false;
-    const video = Boolean(this._webapp && this._webapp.checked);
+    const page = this._pageOpen();
+    this._continue.hidden = !(full || page);
+    if (!full && !page) this._continue.checked = false;
+    const video = Boolean((this._webapp && this._webapp.checked) || page);
     this._background.hidden = !video;
   }
 
@@ -957,12 +968,13 @@ class AlquranCloudCard extends HTMLElement {
     this._loop.querySelector(".label").textContent = text.loop;
     this._webapp.querySelector(".label").textContent = text.webapp;
     this._background.querySelector(".label").textContent = text.background;
-    this._background.hidden = !this._webapp.checked;
     this._help.hidden = !this._webapp.checked;
     this._help.textContent = this._webapp.checked ? text.webappHelp : "";
     const state = this._playerState();
     const session = sessionFor(this._hass, this._player.value);
     const webapp = Boolean((session && session.webapp) || this._webapp.checked);
+    this._background.hidden = !(this._webapp.checked || (session && session.webapp));
+    if (session && session.webapp) this._continue.hidden = false;
     this._followNote.hidden = !webapp;
     this._followNote.textContent = webapp ? text.webappFollow : "";
     this._art.hidden = webapp;
@@ -972,6 +984,7 @@ class AlquranCloudCard extends HTMLElement {
     this._statePill.hidden = false;
     if (session && webapp && Number(session.report_seq) > (this._syncSeq || 0)) {
       this._syncSeq = Number(session.report_seq);
+      this._applyReportedSettings(session);
       if (this._syncTimer) {
         window.clearTimeout(this._syncTimer);
         this._syncTimer = null;
@@ -1253,6 +1266,41 @@ class AlquranCloudCard extends HTMLElement {
       return;
     }
     this._hass.callService("media_player", delta > 0 ? "volume_up" : "volume_down", { entity_id: entity });
+  }
+
+  _applyReportedSettings(session) {
+    this._applyingReport = true;
+    this._continue.hidden = false;
+    this._continue.checked = Boolean(session.continue_surah);
+    this._loop.checked = Boolean(session.loop);
+    this._background.hidden = false;
+    this._background.checked = Boolean(session.background_video);
+    if (this.shadowRoot.activeElement !== this._repeat) {
+      this._repeat.value = String(clampRepeat(session.repeat));
+    }
+    if (this.shadowRoot.activeElement !== this._speed) {
+      const speed = SPEEDS.find((item) => Math.abs(item - Number(session.speed)) < 1e-6);
+      if (speed != null) this._speed.value = String(speed);
+    }
+    this._applyingReport = false;
+  }
+
+  _pushPageSetting(patch) {
+    if (this._applyingReport) return;
+    const entity = this._player && this._player.value;
+    const session = sessionFor(this._hass, entity);
+    if (!entity || !session || !session.webapp) return;
+    const pending = this._hass.callService(
+      "alquran_cloud",
+      "transport",
+      Object.assign({ entity_id: entity, command: "settings" }, patch),
+      { entity_id: entity }
+    );
+    if (pending && pending.catch) {
+      pending.catch((err) => {
+        this._status.textContent = errorText(err, strings(this._hass).error);
+      });
+    }
   }
 
   async _sync() {

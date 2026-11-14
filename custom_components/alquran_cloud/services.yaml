@@ -80,14 +80,14 @@ play:
 
 transport:
   name: TV page command
-  description: Ask the open Quran page to play, pause, step one ayah or one surah, or send its current reciter, surah, and ayah. The page does not reload.
+  description: Ask the open Quran page to play, pause, step, report, or apply playback settings. The page does not reload.
   target:
     entity:
       domain: media_player
   fields:
     command:
       name: Command
-      description: play, pause, next_ayah, previous_ayah, next_surah, previous_surah, or report. next and previous still follow the page setting. report does not change playback.
+      description: play, pause, next_ayah, previous_ayah, next_surah, previous_surah, report, or settings. next and previous still follow the page setting. report does not change playback. settings applies the fields below.
       required: true
       selector:
         select:
@@ -101,13 +101,44 @@ transport:
             - next_surah
             - previous_surah
             - report
-    background_video:
-      name: Background video
-      description: Play the landscape video behind the web app. Ignored for joined audio.
+            - settings
+    continue_surah:
+      name: Advance to next surah
+      description: With the settings command, turn auto-advance on or off. The page reports the same choice back.
       required: false
-      default: false
       selector:
         boolean:
+    loop:
+      name: Loop
+      description: With the settings command, replay when the sequence ends. With advance on, that replay starts at surah 1. The page reports the same choice back.
+      required: false
+      selector:
+        boolean:
+    background_video:
+      name: Background video
+      description: With the settings command, show or hide the landscape clip. The page reports the same choice back.
+      required: false
+      selector:
+        boolean:
+    repeat:
+      name: Repeat
+      description: With the settings command, play the current range this many times. The page reports the same count back.
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 20
+          mode: box
+    speed:
+      name: Playback speed
+      description: With the settings command, use 0.5, 0.75, 1, 1.25, 1.5, 1.75, or 2. Older LG webOS and Samsung sets stay at 1× and report that.
+      required: false
+      selector:
+        number:
+          min: 0.5
+          max: 2
+          step: 0.25
+          mode: box
 
 stop:
   name: Stop playback

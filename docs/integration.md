@@ -56,7 +56,7 @@ The media browser lists reciters, then surahs, then ayahs. The first card inside
 
 ## Web app
 
-`session.py` never calls `prepare_playback` when `webapp` is set. It builds a kiosk URL and launches the TV browser. The session stores the title, the range, and the reciter that were opened, then replaces them with the reciter, surah, ayah, and playing state the page reports. The card shows that report. There is no `media_position` and no ayah advance from the TV’s media player. The state listener returns immediately for these sessions, so the TV going idle does not end the session or start the next surah. Continue and loop are query parameters. The page owns them after it opens.
+`session.py` never calls `prepare_playback` when `webapp` is set. It builds a kiosk URL and launches the TV browser. The session stores the title, the range, and the reciter that were opened, then replaces them with the reciter, surah, ayah, playing state, auto-next, loop, background, repeat, and speed the page reports. The card shows that report and sends a `settings` transport command when one of those controls changes. There is no `media_position` and no ayah advance from the TV’s media player. The state listener returns immediately for these sessions, so the TV going idle does not end the session or start the next surah.
 
 `background_video` is sent as `background_video=true` or `background_video=false`. The default is false, so the landscape clip stays hidden until it is turned on. Joined audio ignores it.
 

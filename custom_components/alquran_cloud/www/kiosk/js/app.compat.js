@@ -794,6 +794,7 @@ btnSpeedToggle.onclick = () => {
   rememberedSpeed = currentSpeed;
   updateSpeedUI();
   persistSettings();
+  notePlayback();
 };
 function loadRecitersWithCache() {
   return __async(this, null, function* () {
@@ -1205,6 +1206,7 @@ function applyRepeatCount() {
   updateRepeatUI();
   persistSettings();
   closeModals();
+  notePlayback();
 }
 function pausePlayback() {
   continuingPlayback = false;
@@ -1301,16 +1303,19 @@ btnToggleBg.onclick = () => {
   bgVideoEnabled = !bgVideoEnabled;
   applyBackground();
   persistSettings();
+  notePlayback();
 };
 btnAutoSurah.onclick = () => {
   autoNextSurah = !autoNextSurah;
   updateAutoButton();
   persistSettings();
+  notePlayback();
 };
 btnLoop.onclick = () => {
   loopEnabled = !loopEnabled;
   updateLoopButton();
   persistSettings();
+  notePlayback();
 };
 function updateRemoteSkipUI() {
   const ayahBtn = document.getElementById("btn-remote-ayah");
@@ -1393,6 +1398,7 @@ document.getElementById("btn-reset-settings").onclick = () => __async(null, null
   updateRemoteSkipUI();
   applyBackground();
   updateReciterLabel();
+  notePlayback();
   yield syncCacheSettings();
   applyLanguage();
   loadSurah(currentSurah, startAyah);
@@ -1453,7 +1459,17 @@ function reportedAyah() {
 }
 function notePlayback() {
   if (!pageTicket) return;
-  const key = [reciter, currentSurah, reportedAyah(), continuingPlayback ? 1 : 0].join("|");
+  const key = [
+    reciter,
+    currentSurah,
+    reportedAyah(),
+    continuingPlayback ? 1 : 0,
+    autoNextSurah ? 1 : 0,
+    loopEnabled ? 1 : 0,
+    bgVideoEnabled ? 1 : 0,
+    maxRepeatCount,
+    currentSpeed
+  ].join("|");
   if (key === reportedKey && controlXhr) return;
   reportedKey = key;
   watchControl();
@@ -1464,13 +1480,59 @@ function controlRequestUrl() {
     "reciter=" + encodeURIComponent(safeEditionId(reciter, "")),
     "surah=" + encodeURIComponent(String(currentSurah)),
     "ayah=" + encodeURIComponent(String(reportedAyah())),
-    "playing=" + (continuingPlayback ? "1" : "0")
+    "playing=" + (continuingPlayback ? "1" : "0"),
+    "auto_surah=" + (autoNextSurah ? "1" : "0"),
+    "loop=" + (loopEnabled ? "1" : "0"),
+    "background_video=" + (bgVideoEnabled ? "1" : "0"),
+    "repeat=" + encodeURIComponent(String(maxRepeatCount)),
+    "speed=" + encodeURIComponent(String(currentSpeed))
   ].join("&");
   return resolveAssetUrl(window.location.href, "control?" + query);
 }
 function pressControl(id) {
   const button = document.getElementById(id);
   if (button) button.click();
+}
+function matchedRemoteSpeed(value) {
+  const speed = Number(value);
+  for (let i = 0; i < AVAILABLE_SPEEDS.length; i += 1) {
+    if (Math.abs(AVAILABLE_SPEEDS[i] - speed) < 1e-3) return AVAILABLE_SPEEDS[i];
+  }
+  return null;
+}
+function applyRemoteSettings(settings) {
+  if (!settings || typeof settings !== "object") return;
+  let changed = false;
+  if (typeof settings.background_video === "boolean" && settings.background_video !== bgVideoEnabled) {
+    bgVideoEnabled = settings.background_video;
+    applyBackground();
+    changed = true;
+  }
+  if (typeof settings.continue_surah === "boolean" && settings.continue_surah !== autoNextSurah) {
+    autoNextSurah = settings.continue_surah;
+    updateAutoButton();
+    changed = true;
+  }
+  if (typeof settings.loop === "boolean" && settings.loop !== loopEnabled) {
+    loopEnabled = settings.loop;
+    updateLoopButton();
+    changed = true;
+  }
+  const repeat = parseInt(settings.repeat, 10);
+  if (repeat >= 1 && repeat <= 20 && repeat !== maxRepeatCount) {
+    maxRepeatCount = repeat;
+    if (currentRepeatCycle > maxRepeatCount) currentRepeatCycle = 1;
+    updateRepeatUI();
+    changed = true;
+  }
+  const speed = legacyTv ? null : matchedRemoteSpeed(settings.speed);
+  if (speed != null && speed !== currentSpeed) {
+    currentSpeed = speed;
+    rememberedSpeed = speed;
+    updateSpeedUI();
+    changed = true;
+  }
+  if (changed) persistSettings();
 }
 function applyControlCommand(command) {
   if (command === "pause") {
@@ -1518,14 +1580,17 @@ function watchControl() {
       return;
     }
     let command = "";
+    let settings = null;
     if (xhr.status === 200) {
       try {
         const body = JSON.parse(xhr.responseText || "{}");
         command = body && body.command ? String(body.command) : "";
+        settings = body && body.settings ? body.settings : null;
       } catch (err) {
       }
     }
     applyControlCommand(command);
+    applyRemoteSettings(settings);
     if (generation !== controlGeneration) return;
     finish(false);
   };

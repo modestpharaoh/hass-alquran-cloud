@@ -37,6 +37,9 @@ from .const import (
     END_OF_TRACK_RATIO,
     END_OF_TRACK_SLACK_SECONDS,
     LANG_ARABIC,
+    MAX_REPEAT,
+    MIN_REPEAT,
+    coerce_speed,
     get_cache_days,
     get_display_language,
 )
@@ -57,6 +60,7 @@ TRANSPORT_COMMANDS = frozenset({
     "next_surah",
     "previous_surah",
     "report",
+    "settings",
 })
 CONTROL_WAIT_SECONDS = 20.0
 _CONTROL_QUEUE_LIMIT = 8
@@ -737,6 +741,47 @@ class PlaybackSessionManager:
         self._wake_control(session)
         return True
 
+    def queue_settings(self, entity_id: str, values: dict[str, Any]) -> bool:
+        """Store playback settings and ask the open page to apply them."""
+        session = self._sessions.get(entity_id)
+        if session is None or not session.webapp or not session.control_ticket:
+            return False
+        applied = False
+        if "continue_surah" in values:
+            session.continue_surah = bool(values["continue_surah"])
+            applied = True
+        if "loop" in values:
+            session.loop = bool(values["loop"])
+            applied = True
+        if "background_video" in values:
+            session.background_video = bool(values["background_video"])
+            applied = True
+        if "repeat" in values:
+            try:
+                repeat = int(values["repeat"])
+            except (TypeError, ValueError):
+                repeat = 0
+            if MIN_REPEAT <= repeat <= MAX_REPEAT:
+                session.repeat = repeat
+                applied = True
+        if "speed" in values:
+            try:
+                session.speed = coerce_speed(values["speed"])
+            except ValueError:
+                pass
+            else:
+                applied = True
+        if not applied:
+            return False
+        session.commands = [item for item in session.commands if item != "settings"]
+        if len(session.commands) >= _CONTROL_QUEUE_LIMIT:
+            del session.commands[0]
+        session.commands.append("settings")
+        session.report_seq += 1
+        self._wake_control(session)
+        self._notify_listeners()
+        return True
+
     async def wait_transport(self, session: PlaybackSession, timeout: float = CONTROL_WAIT_SECONDS) -> str:
         """Return the next queued command, or an empty string when the wait ends."""
         queued = self._pop_command(session)
@@ -766,8 +811,13 @@ class PlaybackSessionManager:
         surah: int | None,
         ayah: int | None,
         playing: bool | None,
+        auto_surah: bool | None = None,
+        loop: bool | None = None,
+        background_video: bool | None = None,
+        repeat: int | None = None,
+        speed: float | None = None,
     ) -> None:
-        """Store the reciter, surah, ayah, and playing flag sent by the page."""
+        """Store the reciter, place, and playback settings sent by the page."""
         if reciter_id and _EDITION_ID.match(reciter_id):
             session.reciter_id = reciter_id
         if surah is not None and 1 <= surah <= 114:
@@ -778,6 +828,20 @@ class PlaybackSessionManager:
             session.ayah = ayah
         if playing is not None:
             session.playing = playing
+        if "settings" not in session.commands:
+            if auto_surah is not None:
+                session.continue_surah = bool(auto_surah)
+            if loop is not None:
+                session.loop = bool(loop)
+            if background_video is not None:
+                session.background_video = bool(background_video)
+            if repeat is not None and MIN_REPEAT <= int(repeat) <= MAX_REPEAT:
+                session.repeat = int(repeat)
+            if speed is not None:
+                try:
+                    session.speed = coerce_speed(speed)
+                except ValueError:
+                    pass
         session.live = True
         session.report_seq += 1
         language = get_display_language(self.coordinator.entry.options)
