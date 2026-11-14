@@ -29,7 +29,7 @@ vm.runInContext(`
   const document = { createElement() { return {}; } };
 ` + fs.readFileSync(process.argv[1], "utf8") + `
   globalThis.__card = {
-    playbackLine, integrationLanguage, mediaPlayers, sessionFor, playbackSelectors, canSeek, seekFraction,
+    playbackLine, integrationLanguage, mediaPlayers, sessionFor, playbackSelectors, canSeek, seekFraction, powerAction,
     playbackClock, formatTime, strings, AlquranCloudCard
   };
 `, context);
@@ -81,6 +81,9 @@ check("selectors return to the card defaults", card.playbackSelectors(null, {
 }).reciter === "ar.alafasy" && card.playbackSelectors(null, {
   reciter_id: "ar.alafasy", surah: 1
 }).surah === "1");
+check("power turns an off player on", card.powerAction("off", 128) === "turn_on" && card.powerAction("standby", 128) === "turn_on" && card.powerAction("unavailable", 128) === "turn_on");
+check("power turns a playing player off", card.powerAction("playing", 256) === "turn_off" && card.powerAction("idle", 384) === "turn_off");
+check("power stays hidden without that action", card.powerAction("playing", 512) === "" && card.powerAction("off", 256) === "");
 check("session lookup", card.sessionFor({
   states: { "sensor.al_quran_cloud_active_sessions": {
     entity_id: "sensor.al_quran_cloud_active_sessions",

@@ -7,7 +7,10 @@ const SEEK = 2;
 const VOLUME_SET = 4;
 const VOLUME_STEP = 1024;
 const PLAY_MEDIA = 512;
+const TURN_ON = 128;
+const TURN_OFF = 256;
 const PLAY = 16384;
+const POWER_OFF = ["off", "standby", "unknown", "unavailable"];
 
 const STRINGS = {
   en: {
@@ -40,6 +43,8 @@ const STRINGS = {
     tvRequired: "Choose an LG, Samsung, or Android TV.",
     speakerRequired: "Choose a speaker that can play the stream.",
     play: "Play",
+    powerOn: "Turn on",
+    powerOff: "Turn off",
     pause: "Pause",
     resume: "Resume",
     previous: "Previous surah",
@@ -85,6 +90,8 @@ const STRINGS = {
     tvRequired: "اختر تلفاز LG أو Samsung أو Android.",
     speakerRequired: "اختر سماعة يمكنها تشغيل البث.",
     play: "تشغيل",
+    powerOn: "تشغيل الجهاز",
+    powerOff: "إيقاف الجهاز",
     pause: "إيقاف مؤقت",
     resume: "استئناف",
     previous: "السورة السابقة",
@@ -283,6 +290,13 @@ function pad3(value) {
   return String(value).padStart(3, "0");
 }
 
+function powerAction(state, features) {
+  const bits = Number(features) || 0;
+  const off = !state || POWER_OFF.indexOf(state) >= 0;
+  if (off) return bits & TURN_ON ? "turn_on" : "";
+  return bits & TURN_OFF ? "turn_off" : "";
+}
+
 function canSeek(features) {
   return Boolean(features & SEEK);
 }
@@ -404,6 +418,9 @@ const STYLE = `
     border: 1px solid var(--divider-color, rgba(127, 127, 127, 0.4));
     background: var(--card-background-color, transparent); color: var(--primary-text-color); font: inherit;
   }
+  .player-row { display: flex; align-items: flex-end; gap: 8px; }
+  .player-row > label { flex: 1 1 auto; min-width: 0; }
+  button.power.on { background: #026634; color: #fff; }
   .volume { display: flex; align-items: center; gap: 8px; }
   .volume input[type="range"] { flex: 1; accent-color: #026634; }
   .volume .value {
@@ -791,12 +808,18 @@ class AlquranCloudCard extends HTMLElement {
     const notes = document.createElement("div");
     notes.className = "notes";
     notes.append(this._repeatNote, this._speedNote);
+    const playerRow = document.createElement("div");
+    playerRow.className = "player-row";
+    this._power = iconButton("icon power", "mdi:power");
+    this._power.hidden = true;
+    this._power.addEventListener("click", () => this._togglePower());
+    playerRow.append(this._player.parentElement, this._power);
     body.append(
       this._settingsHead,
       this._settings,
       this._help,
       actions,
-      this._player.parentElement,
+      playerRow,
       volume,
       this._status,
       this._reciter.parentElement,
@@ -1051,6 +1074,7 @@ class AlquranCloudCard extends HTMLElement {
     this._renderTransport(text, state, webapp);
     this._paintPlayback();
     this._renderVolume(state);
+    this._renderPower(state, text);
     this._syncSelectors(session);
   }
 
@@ -1286,6 +1310,28 @@ class AlquranCloudCard extends HTMLElement {
       entity_id: entity,
       seek_position: position,
     });
+  }
+
+  _renderPower(state, text) {
+    const features = (state && state.attributes && state.attributes.supported_features) || 0;
+    const action = powerAction(state && state.state, features);
+    this._power.hidden = !action;
+    this._power.classList.toggle("on", action === "turn_off");
+    this._power.title = action === "turn_on" ? text.powerOn : text.powerOff;
+  }
+
+  _togglePower() {
+    const entity = this._player && this._player.value;
+    const state = this._playerState();
+    const features = (state && state.attributes && state.attributes.supported_features) || 0;
+    const action = powerAction(state && state.state, features);
+    if (!entity || !action) return;
+    const pending = this._hass.callService("media_player", action, { entity_id: entity });
+    if (pending && pending.catch) {
+      pending.catch((err) => {
+        this._status.textContent = errorText(err, strings(this._hass).error);
+      });
+    }
   }
 
   _renderVolume(state) {
