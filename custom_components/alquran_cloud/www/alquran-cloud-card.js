@@ -222,6 +222,17 @@ function errorText(err, fallback) {
   return err.message || fallback;
 }
 
+function playbackSelectors(session, config) {
+  const saved = {
+    reciter: config && config.reciter_id ? String(config.reciter_id) : "",
+    surah: config && config.surah ? String(config.surah) : "",
+  };
+  if (!session || session.reciter_id == null || session.reciter_id === "" || session.surah == null || session.surah === "") {
+    return saved;
+  }
+  return { reciter: String(session.reciter_id), surah: String(session.surah) };
+}
+
 function sessionFor(hass, entityId) {
   if (!hass || !entityId || !hass.states) return null;
   const known = [
@@ -873,6 +884,7 @@ class AlquranCloudCard extends HTMLElement {
   async _loadReciters() {
     const text = strings(this._hass);
     this._status.textContent = "";
+    this._followBusy = true;
     try {
       const root = await this._browse(ROOT_ID);
       this._catalog = true;
@@ -880,29 +892,45 @@ class AlquranCloudCard extends HTMLElement {
       this._reciter.innerHTML = children
         .map((child) => `<option value="${valueFromContent(child.media_content_id, "reciter")}">${child.title}</option>`)
         .join("");
-      if (this._preferredReciter) this._reciter.value = this._preferredReciter;
-      await this._loadChapters();
+      const playing = sessionFor(this._hass, this._player && this._player.value);
+      const choice = playbackSelectors(playing, this._config);
+      if (choice.reciter) this._reciter.value = choice.reciter;
+      if (playing) {
+        await this._fillSurahs(choice.surah);
+        const savedReciter = String(this._preferredReciter || "");
+        const savedSurah = String(this._preferredSurah || "");
+        this._followedPlayback = choice.reciter !== savedReciter || choice.surah !== savedSurah;
+        await this._loadAyahs(this._followedPlayback ? { start: "1", end: "" } : undefined);
+      } else {
+        await this._loadChapters();
+      }
     } catch (err) {
       this._status.textContent = errorText(err, text.error);
+    } finally {
+      this._followBusy = false;
     }
+  }
+
+  async _fillSurahs(selected) {
+    const result = await this._browse(`${ROOT_ID}/reciter/${this._reciter.value}`);
+    this._surah.innerHTML = (result.children || [])
+      .map((child) => `<option value="${idFromContent(child.media_content_id, "chapter")}">${child.title}</option>`)
+      .join("");
+    if (selected) this._surah.value = String(selected);
   }
 
   async _loadChapters() {
     if (!this._reciter.value) return;
     const text = strings(this._hass);
     try {
-      const result = await this._browse(`${ROOT_ID}/reciter/${this._reciter.value}`);
-      this._surah.innerHTML = (result.children || [])
-        .map((child) => `<option value="${idFromContent(child.media_content_id, "chapter")}">${child.title}</option>`)
-        .join("");
-      if (this._preferredSurah) this._surah.value = this._preferredSurah;
+      await this._fillSurahs(this._preferredSurah);
       await this._loadAyahs();
     } catch (err) {
       this._status.textContent = errorText(err, text.error);
     }
   }
 
-  async _loadAyahs() {
+  async _loadAyahs(range) {
     if (!this._reciter.value || !this._surah.value) return;
     const text = strings(this._hass);
     try {
@@ -911,8 +939,10 @@ class AlquranCloudCard extends HTMLElement {
       );
       const ayahs = (result.children || []).map((child) => asOption(child, "ayah")).filter(Boolean);
       this._ayahCount = ayahs.length ? Number(ayahs[ayahs.length - 1].id) : 0;
-      fillSelect(this._start, ayahs, this._preferredStart || this._start.value || "1", "");
-      fillSelect(this._end, ayahs, this._preferredEnd || this._end.value, text.throughLast);
+      const start = range ? range.start : (this._preferredStart || this._start.value || "1");
+      const end = range ? range.end : (this._preferredEnd || this._end.value);
+      fillSelect(this._start, ayahs, start || "1", "");
+      fillSelect(this._end, ayahs, end == null ? "" : end, text.throughLast);
       this._syncRange();
     } catch (err) {
       this._status.textContent = errorText(err, text.error);
@@ -1021,6 +1051,42 @@ class AlquranCloudCard extends HTMLElement {
     this._renderTransport(text, state, webapp);
     this._paintPlayback();
     this._renderVolume(state);
+    this._syncSelectors(session);
+  }
+
+  _syncSelectors(session) {
+    if (!this._catalog || this._followBusy || !this._reciter || !this._surah) return;
+    const focused = this.shadowRoot.activeElement;
+    if (focused === this._reciter || focused === this._surah) return;
+    const choice = playbackSelectors(session, this._config);
+    if (!choice.reciter && !choice.surah) return;
+    if (this._reciter.value === choice.reciter && this._surah.value === choice.surah) {
+      if (!session && this._followedPlayback) {
+        this._followedPlayback = false;
+        this._loadAyahs();
+      }
+      return;
+    }
+    if (!session && !this._followedPlayback) return;
+    this._applySelectorChoice(choice, Boolean(session));
+  }
+
+  async _applySelectorChoice(choice, following) {
+    this._followBusy = true;
+    try {
+      if (choice.reciter && this._reciter.value !== choice.reciter) {
+        this._reciter.value = choice.reciter;
+        await this._fillSurahs(choice.surah);
+      } else if (choice.surah) {
+        this._surah.value = choice.surah;
+      }
+      this._followedPlayback = following;
+      await this._loadAyahs(following ? { start: "1", end: "" } : undefined);
+    } catch (err) {
+      this._status.textContent = errorText(err, strings(this._hass).error);
+    } finally {
+      this._followBusy = false;
+    }
   }
 
   _paintPlayback() {

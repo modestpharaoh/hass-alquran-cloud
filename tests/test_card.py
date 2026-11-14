@@ -29,7 +29,7 @@ vm.runInContext(`
   const document = { createElement() { return {}; } };
 ` + fs.readFileSync(process.argv[1], "utf8") + `
   globalThis.__card = {
-    playbackLine, integrationLanguage, mediaPlayers, sessionFor, canSeek, seekFraction,
+    playbackLine, integrationLanguage, mediaPlayers, sessionFor, playbackSelectors, canSeek, seekFraction,
     playbackClock, formatTime, strings, AlquranCloudCard
   };
 `, context);
@@ -71,6 +71,16 @@ const hass = {
 };
 check("web app lists only a TV", card.mediaPlayers(hass, true).map((item) => item.id).join(",") === "media_player.living_room");
 check("audio lists only the speaker", card.mediaPlayers(hass, false).map((item) => item.id).join(",") === "media_player.speaker");
+check("selectors follow the playing reciter and surah", card.playbackSelectors({
+  reciter_id: "ar.husary", surah: 36
+}, { reciter_id: "ar.alafasy", surah: 1 }).reciter === "ar.husary" && card.playbackSelectors({
+  reciter_id: "ar.husary", surah: 36
+}, { reciter_id: "ar.alafasy", surah: 1 }).surah === "36");
+check("selectors return to the card defaults", card.playbackSelectors(null, {
+  reciter_id: "ar.alafasy", surah: 1
+}).reciter === "ar.alafasy" && card.playbackSelectors(null, {
+  reciter_id: "ar.alafasy", surah: 1
+}).surah === "1");
 check("session lookup", card.sessionFor({
   states: { "sensor.al_quran_cloud_active_sessions": {
     entity_id: "sensor.al_quran_cloud_active_sessions",
