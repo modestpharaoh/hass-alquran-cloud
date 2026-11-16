@@ -8,7 +8,7 @@ from custom_components.alquran_cloud.config_flow import (
 )
 
 
-async def test_user_step_stores_speed_and_webapp():
+async def test_user_step_stores_language_and_cache():
     flow = AlquranCloudConfigFlow()
     form = await flow.async_step_user()
     assert form["type"] == "form"
@@ -21,8 +21,8 @@ async def test_user_step_stores_speed_and_webapp():
         }
     )
     assert created["title"] == "Al Quran Cloud"
-    assert created["options"]["playback_speed"] == 1.75
-    assert created["options"]["webapp"] is True
+    assert "playback_speed" not in created["options"]
+    assert "webapp" not in created["options"]
     assert created["options"]["cache_days"] == 14
     assert created["options"]["display_language"] == "arabic"
     assert created["options"]["kiosk_allow_private"] is False
@@ -35,8 +35,6 @@ async def test_options_reject_the_whole_internet_and_store_a_subnet():
     base = {
         "display_language": "english",
         "cache_days": 7,
-        "playback_speed": "1",
-        "webapp": False,
         "kiosk_allow_private": True,
     }
     rejected = await flow.async_step_init({**base, "kiosk_trusted_networks": "0.0.0.0/0"})

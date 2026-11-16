@@ -31,22 +31,15 @@ from .const import (
     CONF_FAVORITE_RECITERS,
     CONF_KIOSK_ALLOW_PRIVATE,
     CONF_KIOSK_TRUSTED_NETWORKS,
-    CONF_PLAYBACK_SPEED,
-    CONF_WEBAPP,
     DEFAULT_CACHE_DAYS,
     DEFAULT_DISPLAY_LANGUAGE,
-    DEFAULT_PLAYBACK_SPEED,
-    DEFAULT_WEBAPP,
     DISPLAY_LANGUAGES,
     DOMAIN,
     MAX_CACHE_DAYS,
     MIN_CACHE_DAYS,
-    PLAYBACK_SPEEDS,
-    coerce_speed,
     get_cache_days,
     get_display_language,
     get_favorite_reciter_ids,
-    webapp_enabled,
 )
 from .kiosk import InvalidTrustedNetwork, parse_trusted_networks
 
@@ -70,13 +63,6 @@ def _reciter_select_options(hass: HomeAssistant | None, language: str) -> list[d
     return []
 
 
-def _speed_default(options: dict[str, Any]) -> str:
-    try:
-        return f"{coerce_speed(options.get(CONF_PLAYBACK_SPEED, DEFAULT_PLAYBACK_SPEED)):g}"
-    except ValueError:
-        return "1"
-
-
 def _options_schema(defaults: dict[str, Any], reciter_options: list[dict[str, str]]) -> vol.Schema:
     schema: dict[Any, Any] = {
         vol.Required(
@@ -98,15 +84,6 @@ def _options_schema(defaults: dict[str, Any], reciter_options: list[dict[str, st
                 step=1,
             )
         ),
-        vol.Required(CONF_PLAYBACK_SPEED, default=_speed_default(defaults)): SelectSelector(
-            SelectSelectorConfig(
-                options=[{"value": f"{speed:g}", "label": f"{speed:g}×"} for speed in PLAYBACK_SPEEDS],
-                mode=SelectSelectorMode.DROPDOWN,
-            )
-        ),
-        vol.Required(
-            CONF_WEBAPP, default=webapp_enabled(defaults)
-        ): BooleanSelector(),
         vol.Required(
             CONF_KIOSK_ALLOW_PRIVATE,
             default=bool(defaults.get(CONF_KIOSK_ALLOW_PRIVATE, False)),
@@ -142,10 +119,6 @@ def _stored_options(user_input: dict[str, Any], previous: dict[str, Any]) -> dic
         CONF_CACHE_DAYS: get_cache_days(
             {CONF_CACHE_DAYS: user_input.get(CONF_CACHE_DAYS, previous.get(CONF_CACHE_DAYS, DEFAULT_CACHE_DAYS))}
         ),
-        CONF_PLAYBACK_SPEED: coerce_speed(
-            user_input.get(CONF_PLAYBACK_SPEED, previous.get(CONF_PLAYBACK_SPEED, DEFAULT_PLAYBACK_SPEED))
-        ),
-        CONF_WEBAPP: bool(user_input.get(CONF_WEBAPP, webapp_enabled(previous))),
         CONF_FAVORITE_RECITERS: favorites,
         CONF_KIOSK_ALLOW_PRIVATE: bool(
             user_input.get(CONF_KIOSK_ALLOW_PRIVATE, previous.get(CONF_KIOSK_ALLOW_PRIVATE, False))
@@ -193,8 +166,6 @@ class AlquranCloudConfigFlow(ConfigFlow, domain=DOMAIN):
                 {
                     CONF_DISPLAY_LANGUAGE: DEFAULT_DISPLAY_LANGUAGE,
                     CONF_CACHE_DAYS: DEFAULT_CACHE_DAYS,
-                    CONF_PLAYBACK_SPEED: DEFAULT_PLAYBACK_SPEED,
-                    CONF_WEBAPP: DEFAULT_WEBAPP,
                     CONF_FAVORITE_RECITERS: [],
                 },
                 reciter_options,

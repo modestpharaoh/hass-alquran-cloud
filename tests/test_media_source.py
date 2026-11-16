@@ -88,7 +88,7 @@ async def test_full_surah_uses_the_joined_cache(monkeypatch):
     assert seen["store"] is source.entry.runtime_data.store
     assert seen["start_ayah"] == 1
     assert seen["end_ayah"] == 2
-    assert seen["speed"] == 0.75
+    assert seen["speed"] == 1
     assert seen["cache_days"] == 7
     assert seen["reciter"].id == "ar.alafasy"
     assert seen["chapter"].number == 1

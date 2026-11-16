@@ -13,8 +13,6 @@ DEFAULT_UPDATE_INTERVAL_HOURS = 24
 
 CONF_DISPLAY_LANGUAGE = "display_language"
 CONF_CACHE_DAYS = "cache_days"
-CONF_PLAYBACK_SPEED = "playback_speed"
-CONF_WEBAPP = "webapp"
 CONF_BACKGROUND_VIDEO = "background_video"
 CONF_FAVORITE_RECITERS = "favorite_reciters"
 CONF_KIOSK_ALLOW_PRIVATE = "kiosk_allow_private"
@@ -98,16 +96,6 @@ def get_cache_days(options: dict) -> int:
     except (TypeError, ValueError):
         return DEFAULT_CACHE_DAYS
     return min(MAX_CACHE_DAYS, max(MIN_CACHE_DAYS, days))
-
-
-def webapp_enabled(options: dict) -> bool:
-    """Return whether playback should open the TV web app.
-
-    `show_picture` is the previous name of this option.
-    """
-    if CONF_WEBAPP in options:
-        return bool(options[CONF_WEBAPP])
-    return bool(options.get("show_picture", DEFAULT_WEBAPP))
 
 
 def arabic_ayah_word(count: int) -> str:

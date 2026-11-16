@@ -9,7 +9,7 @@ There are two playback paths. They do not share a media file.
 | Audio (`webapp` off) | Downloads ayah MP3s, joins them with ffmpeg, serves one MP3 | Any media player |
 | Web app (`webapp` on) | Opens a URL in a TV browser | The TV browser runs the bundled player |
 
-An earlier design downloaded audio, stacked ayah images, and encoded an MP4 on Home Assistant. That was dropped. The TV browser is a better screen, and Home Assistant does not need to track the live ayah after the TV takes over. The option was named `show_picture` while that encoder existed. It is now `webapp`. Saved options that still say `show_picture` are read as `webapp`.
+An earlier design downloaded audio, stacked ayah images, and encoded an MP4 on Home Assistant. That was dropped. The TV browser is a better screen, and Home Assistant does not need to track the live ayah after the TV takes over. Speed and the web app are chosen on `alquran_cloud.play` or on the card. They are not integration options. A play call that leaves them out uses speed 1 and stays on joined audio. The media browser plays a full surah at 1×.
 
 ## Layout
 
@@ -18,7 +18,7 @@ custom_components/alquran_cloud/
   __init__.py        setup, card resource, HTTP views
   api.py             Al Quran Cloud catalog
   coordinator.py     periodic catalog refresh
-  config_flow.py     options: language, cache days, speed, web app, favorites, kiosk access
+  config_flow.py     options: language, cache days, favorites, kiosk access
   services.py        play, stop, transport, next, previous, cache clears
   session.py         one playback session per media player
   video.py           joined MP3 build and cache
@@ -56,7 +56,7 @@ While that speaker session is already playing, Continue, Loop, and Repeat from t
 
 The catalog is Arabic audio that is ayah by ayah: editions of type `versebyverse`, plus the editions Al Quran Cloud labels `translation` even though each ayah is an MP3. Those are Minshawi, Minshawi (Mujawwad), the alternate Minshawi edition, and Abdul Basit (murattal). Full-surah editions (`surahbysurah`) stay out, because the ayah endpoint has no file for them. The list refreshes every 24 hours and again when the integration is set up.
 
-The media browser lists those reciters, then surahs, then ayahs. Favorites from the options flow are listed first. The first card inside a surah names the surah, its ayah count, and Meccan or Medinan. Playing it calls `prepare_playback` for ayah 1 through the last ayah, at the saved playback speed, so it reuses the joined MP3 cache. A missing file is built first. Each ayah card still resolves one public CDN MP3.
+The media browser lists those reciters, then surahs, then ayahs. Favorites from the options flow are listed first. The first card inside a surah names the surah, its ayah count, and Meccan or Medinan. Playing it calls `prepare_playback` for ayah 1 through the last ayah at 1×, so it reuses the joined MP3 cache. A missing file is built first. Each ayah card still resolves one public CDN MP3.
 
 Home Assistant keeps the media source object until the process restarts. Browse and playback look up the config entry that is loaded now, so removing the integration and adding it again fills the card lists without a Home Assistant restart.
 

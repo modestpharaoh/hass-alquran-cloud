@@ -26,12 +26,12 @@ from .const import (
     ATTR_SURAH,
     ATTR_COMMAND,
     ATTR_WEBAPP,
-    CONF_PLAYBACK_SPEED,
     DEFAULT_BACKGROUND_VIDEO,
     DEFAULT_CONTINUE_SURAH,
     DEFAULT_LOOP,
     DEFAULT_PLAYBACK_SPEED,
     DEFAULT_REPEAT,
+    DEFAULT_WEBAPP,
     MAX_REPEAT,
     MIN_REPEAT,
     DOMAIN,
@@ -46,7 +46,6 @@ from .const import (
     SERVICE_STOP,
     SERVICE_TRANSPORT,
     coerce_speed,
-    webapp_enabled,
 )
 from .coordinator import QuranCoordinator
 from .session import TRANSPORT_COMMANDS, PlaybackSessionManager
@@ -160,9 +159,8 @@ def async_register_services(
         full = start_ayah <= 1 and end_value >= chapter.verses_count
         repeat = int(call.data.get(ATTR_REPEAT, DEFAULT_REPEAT))
 
-        options = coordinator.entry.options
         try:
-            speed = coerce_speed(call.data.get(ATTR_SPEED, options.get(CONF_PLAYBACK_SPEED, DEFAULT_PLAYBACK_SPEED)))
+            speed = coerce_speed(call.data.get(ATTR_SPEED, DEFAULT_PLAYBACK_SPEED))
         except ValueError as err:
             raise HomeAssistantError(str(err)) from err
         if ATTR_WEBAPP in call.data:
@@ -170,7 +168,7 @@ def async_register_services(
         elif "show_picture" in call.data:
             webapp = bool(call.data["show_picture"])
         else:
-            webapp = webapp_enabled(options)
+            webapp = DEFAULT_WEBAPP
         background_video = bool(call.data.get(ATTR_BACKGROUND_VIDEO, DEFAULT_BACKGROUND_VIDEO))
 
         for entity_id in await _entity_ids(call):

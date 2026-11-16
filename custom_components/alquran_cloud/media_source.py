@@ -15,14 +15,12 @@ from homeassistant.core import HomeAssistant
 
 from .api import Catalog, QuranApiError
 from .const import (
-    CONF_PLAYBACK_SPEED,
     DEFAULT_PLAYBACK_SPEED,
     DOMAIN,
     ID_AYAH,
     ID_CHAPTER,
     ID_RECITER,
     MIME_TYPE_MP3,
-    coerce_speed,
     get_cache_days,
     get_display_language,
     get_favorite_reciter_ids,
@@ -113,10 +111,7 @@ class AlquranCloudMediaSource(MediaSource):
     async def _resolve_full_surah(self, catalog: Catalog, reciter: Any, chapter: Any) -> PlayMedia:
         """Build or reuse the joined surah, then return its local URL."""
         options = self.entry.options or {}
-        try:
-            speed = coerce_speed(options.get(CONF_PLAYBACK_SPEED, DEFAULT_PLAYBACK_SPEED))
-        except ValueError as err:
-            raise Unresolvable(str(err)) from err
+        speed = DEFAULT_PLAYBACK_SPEED
         try:
             prepared = await prepare_playback(
                 self.hass,

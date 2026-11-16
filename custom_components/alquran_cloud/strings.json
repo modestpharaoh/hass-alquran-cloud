@@ -7,8 +7,6 @@
         "data": {
           "display_language": "Display language",
           "cache_days": "Joined audio cache (days)",
-          "playback_speed": "Default playback speed",
-          "webapp": "Web app",
           "favorite_reciters": "Favorite reciters",
           "kiosk_allow_private": "Also allow private addresses",
           "kiosk_trusted_networks": "Extra trusted subnets"
@@ -16,8 +14,6 @@
         "data_description": {
           "display_language": "Language used for reciter and surah names.",
           "cache_days": "How many days to keep a joined MP3 before building it again (1-90).",
-          "playback_speed": "Speeds other than 1 need ffmpeg and an HTTPS Home Assistant URL. The web app sends this speed to the TV browser.",
-          "webapp": "Open the Quran web app in the browser of an LG, Samsung, or Android TV. Home Assistant does not follow the ayah after that.",
           "favorite_reciters": "Shown at the top of the Al Quran Cloud media source after the catalog loads.",
           "kiosk_allow_private": "Allow the Quran player from any private LAN address, not only Home Assistant's own network adapters. Public addresses stay refused.",
           "kiosk_trusted_networks": "CIDRs that may open the player without a login, such as 192.168.50.0/24 or 10.8.0.0/24. Separate them with commas or new lines. 0.0.0.0/0 and ::/0 are not allowed."
@@ -41,8 +37,6 @@
         "data": {
           "display_language": "Display language",
           "cache_days": "Joined audio cache (days)",
-          "playback_speed": "Default playback speed",
-          "webapp": "Web app",
           "favorite_reciters": "Favorite reciters",
           "kiosk_allow_private": "Also allow private addresses",
           "kiosk_trusted_networks": "Extra trusted subnets"
@@ -50,8 +44,6 @@
         "data_description": {
           "display_language": "Language used for reciter and surah names.",
           "cache_days": "How many days to keep a joined MP3 before building it again (1-90).",
-          "playback_speed": "Speeds other than 1 need ffmpeg and an HTTPS Home Assistant URL. The web app sends this speed to the TV browser.",
-          "webapp": "Open the Quran web app in the browser of an LG, Samsung, or Android TV. Home Assistant does not follow the ayah after that.",
           "favorite_reciters": "Shown at the top of the Al Quran Cloud media source after the catalog loads.",
           "kiosk_allow_private": "Allow the Quran player from any private LAN address, not only Home Assistant's own network adapters. Public addresses stay refused.",
           "kiosk_trusted_networks": "CIDRs that may open the player without a login, such as 192.168.50.0/24 or 10.8.0.0/24. Separate them with commas or new lines. 0.0.0.0/0 and ::/0 are not allowed."
