@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 
 import pytest
 
@@ -181,8 +182,18 @@ async def test_range_audio_is_cached(tmp_path: Path):
         speed=1.75,
     )
     assert again == path
-    store.purge_expired(7, now=path.stat().st_mtime + 8 * 86400)
+    moment = path.stat().st_mtime
+    later = moment + 8 * 86400
+    stale = path.with_name(f"{path.stem}.part{path.suffix}")
+    fresh = path.with_name("fresh.part.mp3")
+    stale.write_bytes(b"partial")
+    fresh.write_bytes(b"partial")
+    os.utime(stale, (moment, moment))
+    os.utime(fresh, (later, later))
+    store.purge_expired(7, now=later)
     assert not path.exists()
+    assert not stale.exists()
+    assert fresh.is_file()
     assert cache_is_fresh(path, 7) is False
 
 

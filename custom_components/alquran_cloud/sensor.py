@@ -26,6 +26,7 @@ class QuranActiveSessionsSensor(SensorEntity):
     """Report how many ayah sessions are active."""
 
     _attr_has_entity_name = True
+    _attr_should_poll = False
     _attr_translation_key = "active_sessions"
     _attr_icon = "mdi:book-open-variant"
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
 import logging
 import re
 from ipaddress import ip_address, ip_network
@@ -15,7 +16,8 @@ from .const import CONF_KIOSK_ALLOW_PRIVATE, CONF_KIOSK_TRUSTED_NETWORKS, DOMAIN
 from .video import LocalMediaError
 
 _LOGGER = logging.getLogger(__name__)
-_REFUSED_REMOTES: set[str] = set()
+_REFUSED_LIMIT = 256
+_REFUSED_REMOTES: OrderedDict[str, None] = OrderedDict()
 _EMPTY_ADAPTERS_LOGGED = False
 
 KIOSK_ROOT = Path(__file__).parent / "www" / "kiosk"
@@ -412,10 +414,14 @@ def _refuse(
         f"{adapter_count} adapter subnets",
         f"{trusted_count} trusted subnets",
     )
-    if key in _REFUSED_REMOTES:
+    seen = key in _REFUSED_REMOTES
+    _REFUSED_REMOTES[key] = None
+    _REFUSED_REMOTES.move_to_end(key)
+    while len(_REFUSED_REMOTES) > _REFUSED_LIMIT:
+        _REFUSED_REMOTES.popitem(last=False)
+    if seen:
         _LOGGER.debug("Refused Quran player request from %s (%s)", remote, ", ".join(detail))
     else:
-        _REFUSED_REMOTES.add(key)
         _LOGGER.warning("Refused Quran player request from %s (%s)", remote, ", ".join(detail))
     return web.Response(status=403, text="This page is only available on the Home Assistant machine's local network.")
 

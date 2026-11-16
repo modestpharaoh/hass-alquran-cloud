@@ -208,15 +208,18 @@ class QuranApi:
                 name_ar=str(item.get("name") or "").strip(),
             )
         chapters: dict[int, Chapter] = {}
-        for item in surahs.get("data") or []:
-            number = int(item["number"])
-            chapters[number] = Chapter(
-                number=number,
-                name_en=str(item.get("englishName") or "").strip(),
-                name_ar=str(item.get("name") or "").strip(),
-                verses_count=int(item.get("numberOfAyahs") or 0),
-                revelation_place=str(item.get("revelationType") or "").strip(),
-            )
+        try:
+            for item in surahs.get("data") or []:
+                number = int(item["number"])
+                chapters[number] = Chapter(
+                    number=number,
+                    name_en=str(item.get("englishName") or "").strip(),
+                    name_ar=str(item.get("name") or "").strip(),
+                    verses_count=int(item.get("numberOfAyahs") or 0),
+                    revelation_place=str(item.get("revelationType") or "").strip(),
+                )
+        except (KeyError, TypeError, ValueError) as err:
+            raise QuranApiError("Al Quran Cloud catalog was incomplete") from err
         if not reciters or len(chapters) < 114:
             raise QuranApiError("Al Quran Cloud catalog was incomplete")
         _LOGGER.debug(

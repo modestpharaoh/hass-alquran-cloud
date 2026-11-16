@@ -159,7 +159,6 @@ class PlaybackSession:
             "speed": self.speed,
             "webapp": self.webapp,
             "background_video": self.background_video,
-            "url": self.expected_url,
             "title": self.title,
             "artist": self.artist,
             "album": self.album,
@@ -167,9 +166,6 @@ class PlaybackSession:
             "live": self.live,
             "playing": self.playing,
             "report_seq": self.report_seq,
-            "spans": [
-                [int(ayah), float(start), float(end)] for ayah, start, end in self.spans
-            ],
         }
 
 
@@ -181,14 +177,8 @@ class PlaybackSessionManager:
         self.hass = hass
         self.coordinator = coordinator
         self._sessions: dict[str, PlaybackSession] = {}
-        self._unsub_state = hass.bus.async_listen(
-            "state_changed",
-            self._async_on_state_changed,
-        )
-        self._unsub_service = hass.bus.async_listen(
-            EVENT_CALL_SERVICE,
-            self._async_on_call_service,
-        )
+        self._unsub_state = hass.bus.async_listen("state_changed", self._on_state_changed)
+        self._unsub_service = hass.bus.async_listen(EVENT_CALL_SERVICE, self._on_call_service)
         self._advancing: set[str] = set()
         self._stopping: set[str] = set()
         self._listeners: list[ListenerCallback] = []
@@ -205,7 +195,12 @@ class PlaybackSessionManager:
         if self._unsub_service:
             self._unsub_service()
             self._unsub_service = None
+        for session in list(self._sessions.values()):
+            self._wake_control(session)
         self._sessions.clear()
+        self._advancing.clear()
+        self._stopping.clear()
+        self._generation.clear()
         self._notify_listeners()
 
     @property
@@ -249,6 +244,10 @@ class PlaybackSessionManager:
         generation = self._generation.get(entity_id, 0) + 1
         self._generation[entity_id] = generation
         return generation
+
+    def _is_current(self, entity_id: str, session: PlaybackSession, generation: int) -> bool:
+        """Return True while this play has not been stopped or replaced."""
+        return self._generation.get(entity_id) == generation and self._sessions.get(entity_id) is session
 
     def _labels(self, reciter: Any, chapter: Any, ayah: int) -> tuple[str, str, str]:
         language = get_display_language(self.coordinator.entry.options)
@@ -308,6 +307,8 @@ class PlaybackSessionManager:
             )
         full = start_ayah <= 1 and end >= chapter.verses_count
         count = max(1, int(repeat))
+        previous = self._sessions.get(entity_id)
+        generation = self._bump(entity_id)
         session = PlaybackSession(
             entity_id=entity_id,
             reciter_id=reciter.id,
@@ -330,13 +331,20 @@ class PlaybackSessionManager:
             pending_play=True,
         )
         self._sessions[entity_id] = session
-        if self._ensure_stop_button is not None:
-            await self._ensure_stop_button(entity_id)
-        self._notify_listeners()
+        if previous is not None:
+            self._wake_control(previous)
         try:
-            await self._async_play_current(session, blocking=True)
+            if self._ensure_stop_button is not None:
+                await self._ensure_stop_button(entity_id)
+            if not self._is_current(entity_id, session, generation):
+                return session
+            self._notify_listeners()
+            await self._async_play_current(session, generation, blocking=True)
+            if self._is_current(entity_id, session, generation):
+                self._notify_listeners()
         except Exception:
-            self.stop(entity_id)
+            if self._is_current(entity_id, session, generation):
+                self.stop(entity_id)
             raise
         return session
 
@@ -384,7 +392,9 @@ class PlaybackSessionManager:
     def stop(self, entity_id: str) -> None:
         """Clear a session without stopping media."""
         self._bump(entity_id)
-        if self._sessions.pop(entity_id, None):
+        removed = self._sessions.pop(entity_id, None)
+        if removed:
+            self._wake_control(removed)
             self._notify_listeners()
 
     @staticmethod
@@ -437,6 +447,26 @@ class PlaybackSessionManager:
             return
         session.ayah = ayah
         self._notify_listeners()
+
+    @callback
+    def _on_state_changed(self, event: Event) -> None:
+        """Ignore every state change except one for a player with a session."""
+        entity_id = event.data.get("entity_id")
+        if not isinstance(entity_id, str) or not entity_id.startswith("media_player."):
+            return
+        if entity_id not in self._sessions:
+            return
+        self.hass.async_create_task(self._async_on_state_changed(event))
+
+    @callback
+    def _on_call_service(self, event: Event) -> None:
+        """Ignore service calls that cannot interrupt a Quran session."""
+        if event.data.get("domain") != MEDIA_PLAYER_DOMAIN:
+            return
+        service = event.data.get("service")
+        if service != "media_play" and service not in _USER_STOP_SERVICES:
+            return
+        self.hass.async_create_task(self._async_on_call_service(event))
 
     async def _async_on_call_service(self, event: Event) -> None:
         """Mark sessions interrupted when HA stops, pauses, or turns off a player."""
@@ -582,7 +612,7 @@ class PlaybackSessionManager:
         if entity_id in self._advancing:
             return
         self._advancing.add(entity_id)
-        self._bump(entity_id)
+        generation = self._bump(entity_id)
         try:
             if session.user_interrupted:
                 self.stop(entity_id)
@@ -595,8 +625,9 @@ class PlaybackSessionManager:
             session.pending_play = True
             session.spans = ()
             if session.plays_remaining > 0:
-                await self._async_play_current(session, blocking=False)
-                self._notify_listeners()
+                await self._async_play_current(session, generation, blocking=False)
+                if self._is_current(entity_id, session, generation):
+                    self._notify_listeners()
                 return
             if session.full_surah and session.continue_surah:
                 target = self._neighbor_surah(session.chapter, 1)
@@ -606,8 +637,9 @@ class PlaybackSessionManager:
                     self.stop(entity_id)
                     return
                 self._assign_full_surah(session, target)
-                await self._async_play_current(session, blocking=False)
-                self._notify_listeners()
+                await self._async_play_current(session, generation, blocking=False)
+                if self._is_current(entity_id, session, generation):
+                    self._notify_listeners()
                 return
             if session.loop:
                 catalog = self.catalog
@@ -621,8 +653,9 @@ class PlaybackSessionManager:
                 session.ayah = session.origin_start
                 session.full_surah = session.origin_start <= 1 and session.origin_end >= origin.verses_count
                 session.plays_remaining = session.repeat
-                await self._async_play_current(session, blocking=False)
-                self._notify_listeners()
+                await self._async_play_current(session, generation, blocking=False)
+                if self._is_current(entity_id, session, generation):
+                    self._notify_listeners()
                 return
             self.stop(entity_id)
         finally:
@@ -644,20 +677,31 @@ class PlaybackSessionManager:
         if target is None:
             raise ValueError("This session has no further surah")
         self._advancing.add(entity_id)
-        self._bump(entity_id)
+        generation = self._bump(entity_id)
         try:
             session.user_interrupted = False
             self._assign_full_surah(session, target)
-            await self._async_play_current(session, blocking=False)
-            self._notify_listeners()
+            await self._async_play_current(session, generation, blocking=False)
+            if self._is_current(entity_id, session, generation):
+                self._notify_listeners()
         finally:
             self._advancing.discard(entity_id)
 
-    async def _async_play_current(self, session: PlaybackSession, *, blocking: bool) -> None:
+    async def _async_play_current(
+        self,
+        session: PlaybackSession,
+        generation: int,
+        *,
+        blocking: bool,
+    ) -> None:
+        if not self._is_current(session.entity_id, session, generation):
+            return
         if session.webapp:
-            await self._async_open_webapp(session, blocking=blocking)
+            await self._async_open_webapp(session, generation, blocking=blocking)
             return
         media = await self._async_prepare(session)
+        if not self._is_current(session.entity_id, session, generation):
+            return
         session.expected_url = media.url
         session.marker = media.marker
         session.title = media.title
@@ -666,12 +710,17 @@ class PlaybackSessionManager:
         session.image_url = media.image_url
         self._apply_display(session)
         session.spans = media.spans
-        self._bump(session.entity_id)
         await self._async_play_url(session, media, blocking=blocking)
-        if media.seek:
+        if media.seek and self._is_current(session.entity_id, session, generation):
             await self._async_seek(session.entity_id, media.seek)
 
-    async def _async_open_webapp(self, session: PlaybackSession, *, blocking: bool) -> None:
+    async def _async_open_webapp(
+        self,
+        session: PlaybackSession,
+        generation: int,
+        *,
+        blocking: bool,
+    ) -> None:
         """Open the web app in a TV browser and leave playback there."""
         if session.platform not in VIDEO_BROWSER_PLATFORMS:
             raise ValueError(
@@ -710,7 +759,8 @@ class PlaybackSessionManager:
         session.live = False
         session.playing = False
         session.commands.clear()
-        self._bump(session.entity_id)
+        if not self._is_current(session.entity_id, session, generation):
+            return
         await self._async_launch_browser(
             session, f"{url}&control={session.control_ticket}", blocking=blocking
         )
@@ -818,6 +868,7 @@ class PlaybackSessionManager:
         speed: float | None = None,
     ) -> None:
         """Store the reciter, place, and playback settings sent by the page."""
+        before = self._reported_snapshot(session)
         if reciter_id and _EDITION_ID.match(reciter_id):
             session.reciter_id = reciter_id
         if surah is not None and 1 <= surah <= 114:
@@ -843,7 +894,6 @@ class PlaybackSessionManager:
                 except ValueError:
                     pass
         session.live = True
-        session.report_seq += 1
         language = get_display_language(self.coordinator.entry.options)
         if catalog is not None:
             reciter = catalog.get_reciter(session.reciter_id)
@@ -852,7 +902,28 @@ class PlaybackSessionManager:
                 session.artist = reciter.localized_name(language)
             if chapter is not None:
                 session.title = chapter.playing_title(session.ayah, language)
+        if self._reported_snapshot(session) == before:
+            return
+        session.report_seq += 1
         self._notify_listeners()
+
+    @staticmethod
+    def _reported_snapshot(session: PlaybackSession) -> tuple[Any, ...]:
+        """Return the session fields a TV poll can change on the sensor."""
+        return (
+            session.reciter_id,
+            session.chapter,
+            session.ayah,
+            session.playing,
+            session.live,
+            session.continue_surah,
+            session.loop,
+            session.background_video,
+            session.repeat,
+            session.speed,
+            session.title,
+            session.artist,
+        )
 
     @staticmethod
     def _pop_command(session: PlaybackSession) -> str:

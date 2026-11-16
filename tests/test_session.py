@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from types import SimpleNamespace
 
 import pytest
@@ -125,7 +126,9 @@ async def test_playing_position_updates_current_ayah(hass: HomeAssistant):
         )
     )
     assert session.ayah == 2
-    assert session.as_attr_dict()["spans"][1] == [2, 4.0, 8.0]
+    assert "spans" not in session.as_attr_dict()
+    assert "url" not in session.as_attr_dict()
+    assert session.spans[1] == (2, 4.0, 8.0)
 
 
 @pytest.mark.asyncio
@@ -421,5 +424,59 @@ async def test_webapp_ticket_queues_a_command_and_stores_a_report(hass: HomeAssi
     assert session.loop is False
     assert session.repeat == 2
     assert session.speed == 0.75
+    seq = session.report_seq
+    manager.apply_report(
+        session,
+        reciter_id="ar.alafasy",
+        surah=1,
+        ayah=1,
+        playing=True,
+        auto_surah=False,
+        loop=False,
+        background_video=False,
+        repeat=2,
+        speed=0.75,
+    )
+    assert session.report_seq == seq
     assert manager.queue_settings("media_player.room", {"loop": True}) is False
     assert manager.queue_transport("media_player.room", "play") is False
+
+
+@pytest.mark.asyncio
+async def test_stop_during_prepare_does_not_start_playback(hass: HomeAssistant):
+    manager = _manager(hass)
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def prepare(**kwargs):
+        started.set()
+        await release.wait()
+        return PreparedMedia(
+            url="https://ha.example/range.mp3",
+            content_type="audio/mpeg",
+            title="001",
+            artist="Alafasy",
+            marker="surah",
+            image_url="",
+        )
+
+    manager.set_preparer(prepare)
+    task = asyncio.create_task(
+        manager.async_start(
+            "media_player.room",
+            manager.catalog.get_reciter("ar.alafasy"),
+            manager.catalog.get_chapter(1),
+            1,
+            repeat=1,
+            continue_surah=False,
+            loop=False,
+            speed=1,
+            webapp=False,
+        )
+    )
+    await started.wait()
+    await manager.async_stop("media_player.room")
+    release.set()
+    await task
+    assert _play_calls(hass) == []
+    assert manager.get_session("media_player.room") is None

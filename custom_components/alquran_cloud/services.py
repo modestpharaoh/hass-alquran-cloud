@@ -235,6 +235,7 @@ def async_register_services(
         if store is None:
             raise HomeAssistantError("Al Quran Cloud cache is not ready")
         await hass.async_add_executor_job(store.clear, kind)
+        store.prune_idle_locks()
 
     async def async_handle_clear_cache(_call: ServiceCall) -> None:
         await _clear("all")

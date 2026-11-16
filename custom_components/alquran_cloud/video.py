@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+from functools import partial
 import logging
 import os
 from pathlib import Path
 import secrets
 import shutil
+import threading
 import time
 from typing import Any, Awaitable, Callable
 
@@ -24,6 +26,9 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 _TIMEOUT = ClientTimeout(total=120)
+_FFMPEG_TIMEOUT = 600.0
+_FFPROBE_TIMEOUT = 60.0
+_PART_MAX_AGE = 86400.0
 
 Download = Callable[[str, Path], Awaitable[None]]
 Runner = Callable[[list[str]], Awaitable[None]]
@@ -63,6 +68,7 @@ class MediaStore:
         else:
             self.cache_dir = Path("/tmp/alquran_cloud")
         self._tokens: dict[str, Path] = {}
+        self._token_lock = threading.Lock()
         self._locks: dict[str, asyncio.Lock] = {}
 
     def purge_expired(self, days: int, now: float | None = None) -> None:
@@ -72,11 +78,15 @@ class MediaStore:
         moment = time.time() if now is None else now
         limit = max(1, int(days)) * 86400
         for path in self.cache_dir.rglob("*"):
-            if not path.is_file() or ".part" in path.name:
+            if not path.is_file():
                 continue
             try:
                 age = moment - path.stat().st_mtime
             except OSError:
+                continue
+            if ".part" in path.name:
+                if age > _PART_MAX_AGE:
+                    path.unlink(missing_ok=True)
                 continue
             if age > limit:
                 path.unlink(missing_ok=True)
@@ -91,19 +101,25 @@ class MediaStore:
 
     def publish(self, path: Path) -> str:
         """Return a token that serves this file."""
-        for token, existing in self._tokens.items():
-            if existing == path:
-                return token
-        token = secrets.token_urlsafe(24)
-        self._tokens[token] = path
-        return token
+        with self._token_lock:
+            for token, existing in self._tokens.items():
+                if existing == path:
+                    return token
+            token = secrets.token_urlsafe(24)
+            self._tokens[token] = path
+            return token
 
     def resolve(self, token: str) -> Path | None:
         """Return the file for a token."""
-        path = self._tokens.get(token)
+        with self._token_lock:
+            path = self._tokens.get(token)
         if path is None or not path.is_file():
             return None
         return path
+
+    def prune_idle_locks(self) -> None:
+        """Drop build locks that nothing is waiting on."""
+        self._locks = {key: lock for key, lock in self._locks.items() if lock.locked()}
 
     def clear(self, kind: str = "all") -> int:
         """Delete cached files and return how many files were removed."""
@@ -155,8 +171,21 @@ class MediaStore:
         self._forget_missing_tokens()
         return removed
 
+    def forget_missing_tokens(self) -> None:
+        """Drop tokens whose files are gone. Safe to call from an executor."""
+        self._forget_missing_tokens()
+
     def _forget_missing_tokens(self) -> None:
-        self._tokens = {token: path for token, path in self._tokens.items() if path.is_file()}
+        with self._token_lock:
+            snapshot = list(self._tokens.items())
+        stale = [token for token, path in snapshot if not path.is_file()]
+        if not stale:
+            return
+        with self._token_lock:
+            for token in stale:
+                path = self._tokens.get(token)
+                if path is not None and not path.is_file():
+                    self._tokens.pop(token, None)
 
 
 def resolve_https_base(get_url: Callable[..., str], unavailable: type[Exception]) -> str:
@@ -197,7 +226,7 @@ def public_media_url(hass: Any, store: MediaStore, path: Path) -> str:
 
 def ffmpeg_joined_audio_command(ffmpeg: str, audio: Path, dest: Path, speed: float) -> list[str]:
     """Encode joined PCM as one MP3, applying speed only when it is not 1."""
-    command = [ffmpeg, "-y", "-i", str(audio)]
+    command = [ffmpeg, "-nostdin", "-y", "-i", str(audio)]
     speed = coerce_speed(speed)
     if speed != 1:
         command += ["-filter:a", f"atempo={speed}"]
@@ -233,28 +262,71 @@ def _remove_tree(path: Path) -> int:
     return removed
 
 
+async def _blocking(func: Callable[..., Any], /, *args: Any, **kwargs: Any) -> Any:
+    """Run one filesystem call off the event loop."""
+    if kwargs:
+        func = partial(func, *args, **kwargs)
+        args = ()
+    return await asyncio.get_running_loop().run_in_executor(None, func, *args)
+
+
+async def _communicate(
+    process: asyncio.subprocess.Process,
+    timeout: float,
+) -> tuple[bytes, bytes]:
+    """Wait for a process, and kill it when the wait is cancelled or times out."""
+    try:
+        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout)
+    except (TimeoutError, asyncio.CancelledError):
+        if process.returncode is None:
+            try:
+                process.kill()
+            except ProcessLookupError:
+                pass
+            await process.wait()
+        raise
+    return stdout, stderr
+
+
+def _nonempty_file(path: Path) -> bool:
+    return path.is_file() and path.stat().st_size > 0
+
+
+def _unlink_all(paths: list[Path]) -> None:
+    for path in paths:
+        path.unlink(missing_ok=True)
+
+
+def _pcm_is_current(wav: Path, mp3: Path) -> bool:
+    return wav.is_file() and wav.stat().st_mtime >= mp3.stat().st_mtime
+
+
 async def _run_command(command: list[str]) -> None:
     process = await asyncio.create_subprocess_exec(
         *command,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-    _stdout, stderr = await process.communicate()
+    try:
+        _stdout, stderr = await _communicate(process, _FFMPEG_TIMEOUT)
+    except TimeoutError as err:
+        raise LocalMediaError("ffmpeg timed out") from err
     if process.returncode != 0:
         detail = (stderr or b"").decode("utf-8", errors="replace")[-500:]
         raise LocalMediaError(f"ffmpeg failed: {detail}")
 
 
 async def _download(session: ClientSession, url: str, dest: Path) -> None:
-    if dest.is_file() and dest.stat().st_size > 0:
+    if await _blocking(_nonempty_file, dest):
         return
-    dest.parent.mkdir(parents=True, exist_ok=True)
+    await _blocking(dest.parent.mkdir, parents=True, exist_ok=True)
     temporary = partial_path(dest)
     try:
         async with session.get(url, timeout=_TIMEOUT) as response:
             response.raise_for_status()
-            temporary.write_bytes(await response.read())
-        temporary.replace(dest)
+            payload = await response.read()
+            await _blocking(temporary.write_bytes, payload)
+        await _blocking(temporary.replace, dest)
     except (ClientError, TimeoutError, OSError) as err:
         temporary.unlink(missing_ok=True)
         raise LocalMediaError(f"Could not download {url}: {err}") from err
@@ -267,6 +339,7 @@ async def probe_duration(path: Path) -> float | None:
         return None
     process = await asyncio.create_subprocess_exec(
         ffprobe,
+        "-nostdin",
         "-v",
         "error",
         "-show_entries",
@@ -277,7 +350,10 @@ async def probe_duration(path: Path) -> float | None:
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.DEVNULL,
     )
-    stdout, _stderr = await process.communicate()
+    try:
+        stdout, _stderr = await _communicate(process, _FFPROBE_TIMEOUT)
+    except TimeoutError:
+        return None
     if process.returncode != 0:
         return None
     try:
@@ -350,6 +426,7 @@ def ffmpeg_pcm_command(ffmpeg: str, source: Path, dest: Path) -> list[str]:
     """Decode one MP3 to PCM so the join has no encoder padding."""
     return [
         ffmpeg,
+        "-nostdin",
         "-y",
         "-i",
         str(source),
@@ -368,6 +445,7 @@ def ffmpeg_concat_copy_command(ffmpeg: str, playlist: Path, dest: Path) -> list[
     """Join PCM files without re-encoding."""
     return [
         ffmpeg,
+        "-nostdin",
         "-y",
         "-f",
         "concat",
@@ -465,9 +543,19 @@ def is_full_surah(chapter: Any, start_ayah: int, end_ayah: int) -> bool:
     return start_ayah <= 1 and end_ayah >= chapter.verses_count
 
 
+async def _cached(dest: Path, sidecar: Path, cache_days: int) -> bool:
+    """Refresh and keep a joined file when both it and its cues are still fresh."""
+    fresh = await _blocking(cache_is_fresh, dest, cache_days) and await _blocking(
+        cache_is_fresh, sidecar, cache_days
+    )
+    if fresh:
+        await _blocking(mark_used, dest)
+        await _blocking(mark_used, sidecar)
+    return fresh
+
+
 def _range_stem(chapter_number: int, start_ayah: int, end_ayah: int) -> str:
     return f"{chapter_number:03d}-{start_ayah:03d}-{end_ayah:03d}"
-
 
 
 async def build_range_audio(
@@ -490,10 +578,8 @@ async def build_range_audio(
     safe = _safe_edition(edition)
     dest = store.cache_dir / "audio" / safe / f"{_range_stem(chapter.number, start, end)}-s{_speed_tag(speed)}.mp3"
     sidecar = dest.with_suffix(".json")
-    if cache_is_fresh(dest, cache_days) and cache_is_fresh(sidecar, cache_days):
-        mark_used(dest)
-        mark_used(sidecar)
-        return dest, _load_cues(sidecar)
+    if await _cached(dest, sidecar, cache_days):
+        return dest, await _blocking(_load_cues, sidecar)
     if run_command is None and shutil.which("ffmpeg") is None:
         raise LocalMediaError("ffmpeg is required to join ayah audio.")
     if probe is None and shutil.which("ffprobe") is None:
@@ -501,46 +587,45 @@ async def build_range_audio(
     runner = run_command or _run_command
     duration_of = probe or probe_duration
     async with store.lock_for(str(dest)):
-        if cache_is_fresh(dest, cache_days) and cache_is_fresh(sidecar, cache_days):
-            mark_used(dest)
-            mark_used(sidecar)
-            return dest, _load_cues(sidecar)
+        if await _cached(dest, sidecar, cache_days):
+            return dest, await _blocking(_load_cues, sidecar)
         sources = store.cache_dir / "src" / safe / f"{chapter.number:03d}"
         work = store.cache_dir / "work" / safe / f"audio-{_range_stem(chapter.number, start, end)}-s{_speed_tag(speed)}"
-        sources.mkdir(parents=True, exist_ok=True)
-        work.mkdir(parents=True, exist_ok=True)
+        await _blocking(sources.mkdir, parents=True, exist_ok=True)
+        await _blocking(work.mkdir, parents=True, exist_ok=True)
         wavs: list[Path] = []
         measured: list[tuple[int, float]] = []
-        for ayah in range(start, end + 1):
-            mp3 = sources / f"{ayah:03d}.mp3"
-            wav = work / f"{ayah:03d}.wav"
-            await download(audio_for(ayah), mp3)
-            if not wav.is_file() or wav.stat().st_mtime < mp3.stat().st_mtime:
-                await runner(ffmpeg_pcm_command(shutil.which("ffmpeg") or "ffmpeg", mp3, wav))
-            duration = await duration_of(wav)
-            if not duration or duration <= 0:
-                raise LocalMediaError(f"Could not read the duration of ayah {chapter.number}:{ayah}")
-            wavs.append(wav)
-            measured.append((ayah, duration / speed))
-        cues = cues_from_durations(measured)
         audio_list = work / "audio.ffconcat"
         joined = work / "range.wav"
-        _write_text(audio_list, audio_concat_script(wavs))
-        ffmpeg = shutil.which("ffmpeg") or "ffmpeg"
-        await runner(ffmpeg_concat_copy_command(ffmpeg, audio_list, joined))
-        dest.parent.mkdir(parents=True, exist_ok=True)
         temporary = partial_path(dest)
+        completed = False
         try:
+            for ayah in range(start, end + 1):
+                mp3 = sources / f"{ayah:03d}.mp3"
+                wav = work / f"{ayah:03d}.wav"
+                await download(audio_for(ayah), mp3)
+                if not await _blocking(_pcm_is_current, wav, mp3):
+                    await runner(ffmpeg_pcm_command(shutil.which("ffmpeg") or "ffmpeg", mp3, wav))
+                duration = await duration_of(wav)
+                if not duration or duration <= 0:
+                    raise LocalMediaError(f"Could not read the duration of ayah {chapter.number}:{ayah}")
+                wavs.append(wav)
+                measured.append((ayah, duration / speed))
+            cues = cues_from_durations(measured)
+            await _blocking(_write_text, audio_list, audio_concat_script(wavs))
+            ffmpeg = shutil.which("ffmpeg") or "ffmpeg"
+            await runner(ffmpeg_concat_copy_command(ffmpeg, audio_list, joined))
+            await _blocking(dest.parent.mkdir, parents=True, exist_ok=True)
             await runner(ffmpeg_joined_audio_command(ffmpeg, joined, temporary, speed))
-            temporary.replace(dest)
-        except Exception:
-            temporary.unlink(missing_ok=True)
-            raise
-        _write_sidecar(sidecar, SurahTags("", "", "", ""), cues)
-        joined.unlink(missing_ok=True)
-        for wav in wavs:
-            wav.unlink(missing_ok=True)
-        return dest, cues
+            await _blocking(temporary.replace, dest)
+            await _blocking(_write_sidecar, sidecar, SurahTags("", "", "", ""), cues)
+            completed = True
+            return dest, cues
+        finally:
+            if not completed:
+                await _blocking(_unlink_all, [*wavs, joined, temporary, audio_list])
+            else:
+                await _blocking(_unlink_all, [joined, *wavs, audio_list])
 
 
 
@@ -563,7 +648,9 @@ async def prepare_playback(
     if webapp:
         raise LocalMediaError("The web app opens in a TV browser and is not built as a file.")
     days = DEFAULT_CACHE_DAYS if cache_days is None else cache_days
-    store.purge_expired(days)
+    await _blocking(store.purge_expired, days)
+    await _blocking(store.forget_missing_tokens)
+    store.prune_idle_locks()
     start, end = range_bounds(chapter, start_ayah, end_ayah)
     safe = _safe_edition(str(reciter.id))
     cached = (
@@ -572,7 +659,10 @@ async def prepare_playback(
         / safe
         / f"{_range_stem(chapter.number, start, end)}-s{_speed_tag(coerce_speed(speed))}.mp3"
     )
-    building = not (cache_is_fresh(cached, days) and cache_is_fresh(cached.with_suffix(".json"), days))
+    building = not (
+        await _blocking(cache_is_fresh, cached, days)
+        and await _blocking(cache_is_fresh, cached.with_suffix(".json"), days)
+    )
     bitrate = 128
     notification_id = f"alquran_cloud_range_{safe}_{cached.stem}"
     if building:
@@ -611,7 +701,7 @@ async def prepare_playback(
         if building:
             await _notify(hass, notification_id, dismiss=True)
 
-    mark_used(path)
+    await _blocking(mark_used, path)
     return PreparedMedia(
         url=public_media_url(hass, store, path),
         content_type="audio/mpeg",

@@ -250,3 +250,23 @@ async def test_control_route_stays_local_and_returns_one_command():
     assert session.report["ayah"] == 1
     assert session.report["playing"] is False
     assert session.commands == []
+
+
+def test_refused_remote_memory_stays_bounded():
+    kiosk_module._REFUSED_REMOTES.clear()
+    for index in range(300):
+        kiosk_module._refuse(
+            f"remote-{index}",
+            allow_private=False,
+            adapter_count=1,
+            trusted_count=0,
+        )
+    assert len(kiosk_module._REFUSED_REMOTES) == kiosk_module._REFUSED_LIMIT
+    again = kiosk_module._refuse(
+        "remote-299",
+        allow_private=False,
+        adapter_count=1,
+        trusted_count=0,
+    )
+    assert again.status == 403
+    assert len(kiosk_module._REFUSED_REMOTES) == kiosk_module._REFUSED_LIMIT

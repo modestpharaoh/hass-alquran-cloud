@@ -131,7 +131,7 @@ async def _async_register_card(hass: HomeAssistant) -> None:
     domain_data = hass.data.setdefault(DOMAIN, {})
     if domain_data.get(_CARD_RESOURCE_READY):
         return
-    card_url = _card_url()
+    card_url = await hass.async_add_executor_job(_card_url)
     lovelace = hass.data.get("lovelace")
     resources = getattr(lovelace, "resources", None)
     if getattr(lovelace, "resource_mode", None) != "storage" or resources is None:
@@ -166,6 +166,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: QuranConfigEntry) -> boo
     """Set up Al Quran Cloud from a config entry."""
     store = MediaStore(hass)
     await hass.async_add_executor_job(store.clear_video)
+    store.prune_idle_locks()
     hass.data.setdefault(DOMAIN, {})["store"] = store
     coordinator = QuranCoordinator(hass, entry)
     await coordinator.async_config_entry_first_refresh()
@@ -195,6 +196,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: QuranConfigEntry) -> boo
 async def async_unload_entry(hass: HomeAssistant, entry: QuranConfigEntry) -> bool:
     """Unload a config entry."""
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if not unload_ok:
+        return False
     entry.runtime_data.sessions.async_unload()
     other_entries = [
         item

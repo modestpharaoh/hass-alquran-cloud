@@ -39,5 +39,7 @@ class QuranCoordinator(DataUpdateCoordinator[Catalog]):
             raise UpdateFailed(str(err)) from err
         store = self.hass.data.get(DOMAIN, {}).get("store")
         if store is not None:
-            store.purge_expired(get_cache_days(self.entry.options))
+            await self.hass.async_add_executor_job(store.purge_expired, get_cache_days(self.entry.options))
+            await self.hass.async_add_executor_job(store.forget_missing_tokens)
+            store.prune_idle_locks()
         return catalog

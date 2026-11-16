@@ -97,7 +97,7 @@ The old video mode left MP4s under `.cache/alquran_cloud/surah/` and ayah PNGs u
 
 ## Session and entities
 
-One `PlaybackSession` per media player. `sensor.al_quran_cloud_active_sessions` exposes the reciter, surah, and requested range, keyed by media-player entity id. The same attributes include `display_language`, `english` or `arabic`. The card and the TV page both follow that value. A stop button is created for each player that has been used.
+One `PlaybackSession` per media player. `sensor.al_quran_cloud_active_sessions` exposes the reciter, surah, and requested range, keyed by media-player entity id. The same attributes include `display_language`, `english` or `arabic`. They do not include the media address or the ayah cue list. An unchanged report from a TV page does not write the sensor again. The card and the TV page both follow `display_language`. A stop button is created for each player that has been used.
 
 Audio stop calls `media_stop`. Web app stop is the table above: Home on LG and Android TV, and only a session clear on Samsung.
 

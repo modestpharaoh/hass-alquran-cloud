@@ -8,6 +8,7 @@ from custom_components.alquran_cloud.api import (
     Catalog,
     Chapter,
     QuranApi,
+    QuranApiError,
     ayah_after,
     ayah_before,
     bitrate_from_audio_url,
@@ -114,6 +115,28 @@ async def test_fetch_catalog_and_ayah_audio():
         "https://cdn.islamic.network/quran/audio/128/ar.alafasy/8.mp3"
     )
     assert await api.bitrate_for("ar.alafasy") == 128
+
+
+@pytest.mark.asyncio
+async def test_fetch_catalog_rejects_a_surah_without_a_number():
+    base = "https://api.alquran.cloud/v1"
+    routes = {
+        (f"{base}/edition", "audio", "versebyverse", "ar"): {
+            "code": 200,
+            "status": "OK",
+            "data": [
+                {"identifier": "ar.alafasy", "englishName": "Alafasy", "name": "مشاري", "format": "audio", "type": "versebyverse"},
+            ],
+        },
+        (f"{base}/surah", None, None, None): {
+            "code": 200,
+            "status": "OK",
+            "data": [{"englishName": "Missing", "name": "سورة", "numberOfAyahs": 7}],
+        },
+    }
+    api = QuranApi(_Session(routes))
+    with pytest.raises(QuranApiError):
+        await api.fetch_catalog()
 
 
 def test_arabic_ayah_count_word():
