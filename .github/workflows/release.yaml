@@ -38,7 +38,7 @@ jobs:
           python-version: "3.13"
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: npm
@@ -95,7 +95,26 @@ jobs:
         run: |
           VERSION="${{ steps.vars.outputs.version }}"
           MANIFEST="custom_components/alquran_cloud/manifest.json"
-          jq --arg v "$VERSION" '.version = $v' "$MANIFEST" > "${MANIFEST}.tmp" && mv "${MANIFEST}.tmp" "$MANIFEST"
+          python - "$VERSION" "$MANIFEST" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          version, path = sys.argv[1], Path(sys.argv[2])
+          if not re.fullmatch(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?", version):
+              raise SystemExit(f"Unsupported version: {version}")
+          text = path.read_text()
+          updated, count = re.subn(
+              r'("version"\s*:\s*")[^"]*(")',
+              rf"\g<1>{version}\2",
+              text,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit("manifest.json has no version field")
+          if updated != text:
+              path.write_text(updated)
+          PY
           if ! git diff --quiet "$MANIFEST"; then
             echo "manifest_changed=true" >> "$GITHUB_OUTPUT"
             git config user.name "github-actions[bot]"
