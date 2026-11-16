@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 import os
+import shutil
+import wave
 
 import pytest
 
@@ -17,6 +19,7 @@ from custom_components.alquran_cloud.video import (
     cache_is_fresh,
     cues_from_durations,
     ffmpeg_joined_audio_command,
+    probe_duration,
     resolve_https_base,
     surah_tags,
 )
@@ -28,6 +31,21 @@ def test_speed_includes_175():
     assert coerce_speed(1) == 1.0
     with pytest.raises(ValueError):
         coerce_speed(1.1)
+
+
+@pytest.mark.asyncio
+async def test_probe_duration_reads_a_wav(tmp_path: Path):
+    if shutil.which("ffprobe") is None:
+        pytest.skip("ffprobe is not installed")
+    path = tmp_path / "tone.wav"
+    with wave.open(str(path), "w") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(8000)
+        handle.writeframes(b"\x00\x00" * 8000)
+    duration = await probe_duration(path)
+    assert duration is not None
+    assert abs(duration - 1.0) < 0.05
 
 
 def test_joined_audio_command_includes_175():

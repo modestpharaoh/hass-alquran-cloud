@@ -339,7 +339,6 @@ async def probe_duration(path: Path) -> float | None:
         return None
     process = await asyncio.create_subprocess_exec(
         ffprobe,
-        "-nostdin",
         "-v",
         "error",
         "-show_entries",
@@ -348,13 +347,16 @@ async def probe_duration(path: Path) -> float | None:
         "csv=p=0",
         str(path),
         stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.PIPE,
     )
     try:
-        stdout, _stderr = await _communicate(process, _FFPROBE_TIMEOUT)
+        stdout, stderr = await _communicate(process, _FFPROBE_TIMEOUT)
     except TimeoutError:
+        _LOGGER.warning("ffprobe timed out reading %s", path)
         return None
     if process.returncode != 0:
+        detail = (stderr or b"").decode("utf-8", errors="replace").strip()
+        _LOGGER.warning("ffprobe could not read %s: %s", path, detail[-300:])
         return None
     try:
         duration = float(stdout.decode().strip())
