@@ -794,7 +794,11 @@ class PlaybackSessionManager:
     def queue_settings(self, entity_id: str, values: dict[str, Any]) -> bool:
         """Store playback settings and ask the open page to apply them."""
         session = self._sessions.get(entity_id)
-        if session is None or not session.webapp or not session.control_ticket:
+        if session is None:
+            return False
+        if not session.webapp:
+            return self._apply_audio_settings(session, values)
+        if not session.control_ticket:
             return False
         applied = False
         if "continue_surah" in values:
@@ -829,6 +833,20 @@ class PlaybackSessionManager:
         session.commands.append("settings")
         session.report_seq += 1
         self._wake_control(session)
+        self._notify_listeners()
+        return True
+
+    def _apply_audio_settings(self, session: PlaybackSession, values: dict[str, Any]) -> bool:
+        """Apply continue and loop to a speaker session without rebuilding audio."""
+        applied = False
+        if "continue_surah" in values:
+            session.continue_surah = bool(values["continue_surah"]) and session.full_surah
+            applied = True
+        if "loop" in values:
+            session.loop = bool(values["loop"])
+            applied = True
+        if not applied:
+            return False
         self._notify_listeners()
         return True
 

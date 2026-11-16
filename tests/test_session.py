@@ -156,6 +156,47 @@ async def test_repeat_then_next_surah(hass: HomeAssistant):
 
 
 @pytest.mark.asyncio
+async def test_audio_continue_and_loop_update_the_running_session(hass: HomeAssistant):
+    manager = _manager(hass)
+    reciter = manager.catalog.get_reciter("ar.alafasy")
+    await manager.async_start(
+        "media_player.room",
+        reciter,
+        manager.catalog.get_chapter(1),
+        1,
+        repeat=1,
+        continue_surah=False,
+        loop=False,
+        speed=1,
+        webapp=False,
+    )
+    session = manager.get_session("media_player.room")
+    assert manager.queue_settings("media_player.room", {"continue_surah": True, "loop": True}) is True
+    assert session.continue_surah is True
+    assert session.loop is True
+    assert session.commands == []
+    assert manager.queue_settings("media_player.room", {"speed": 1.5}) is False
+    await _finish(manager, "media_player.room")
+    assert manager.get_session("media_player.room").chapter == 2
+
+    await manager.async_start(
+        "media_player.room",
+        reciter,
+        manager.catalog.get_chapter(1),
+        3,
+        5,
+        repeat=1,
+        continue_surah=False,
+        loop=False,
+        speed=1,
+        webapp=False,
+    )
+    partial = manager.get_session("media_player.room")
+    assert manager.queue_settings("media_player.room", {"continue_surah": True}) is True
+    assert partial.continue_surah is False
+
+
+@pytest.mark.asyncio
 async def test_loop_and_continue_and_stop(hass: HomeAssistant):
     manager = _manager(hass)
     reciter = manager.catalog.get_reciter("ar.alafasy")

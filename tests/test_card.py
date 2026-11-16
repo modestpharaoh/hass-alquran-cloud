@@ -208,6 +208,15 @@ async function exercise() {
   const paused = host(false, "paused");
   await card.AlquranCloudCard.prototype._transportAction.call(paused, "pause");
   check("audio pause resumes", calls[0].service === "media_play");
+  calls.length = 0;
+  const playing = host(false, "playing");
+  playing._applyingReport = false;
+  card.AlquranCloudCard.prototype._pushPageSetting.call(playing, { loop: true });
+  card.AlquranCloudCard.prototype._pushPageSetting.call(playing, { continue_surah: true });
+  card.AlquranCloudCard.prototype._pushPageSetting.call(playing, { speed: 1.5 });
+  check("audio loop updates the running session", calls[0].service === "transport" && calls[0].data.command === "settings" && calls[0].data.loop === true);
+  check("audio continue updates the running session", calls[1].data.continue_surah === true);
+  check("audio speed waits for the next file", calls.length === 2);
 }
 exercise().then(() => process.exit(0), (err) => {
   console.error(err && err.stack || err);

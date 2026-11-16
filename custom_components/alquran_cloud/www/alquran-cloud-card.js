@@ -1401,7 +1401,9 @@ class AlquranCloudCard extends HTMLElement {
     if (this._applyingReport) return;
     const entity = this._player && this._player.value;
     const session = sessionFor(this._hass, entity);
-    if (!entity || !session || !session.webapp) return;
+    if (!entity || !session) return;
+    const liveAudio = !session.webapp && ("continue_surah" in patch || "loop" in patch);
+    if (!session.webapp && !liveAudio) return;
     const pending = this._hass.callService(
       "alquran_cloud",
       "transport",
