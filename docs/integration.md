@@ -19,11 +19,11 @@ custom_components/alquran_cloud/
   api.py             Al Quran Cloud catalog
   coordinator.py     periodic catalog refresh
   config_flow.py     options: language, cache days, speed, web app, favorites, kiosk access
-  services.py        play, stop, next, previous, cache clears
+  services.py        play, stop, transport, next, previous, cache clears
   session.py         one playback session per media player
   video.py           joined MP3 build and cache
   kiosk.py           TV URL and the unauthenticated player files
-  media_source.py    browse one ayah at a time
+  media_source.py    browse reciters, surahs, and ayahs from the loaded entry
   sensor.py          active sessions
   button.py          stop button per used player
   www/               Lovelace card, brand icon, and the TV player
@@ -38,10 +38,10 @@ custom_components/alquran_cloud/
 For audio it:
 
 1. Resolves the ayah range. An empty end ayah means the last ayah of the surah.
-2. Looks up the reciter bitrate from the API, defaulting the URL pattern to 128 kbit/s.
+2. Reads the reciter bitrate from the ayah 1:1 audio URL, then builds each ayah URL from the global ayah number.
 3. Downloads each ayah from `cdn.islamic.network` into `.cache/alquran_cloud/src/`.
-4. Joins them with ffmpeg as PCM, then encodes one MP3. Speeds other than 1 are applied in that encode, so the file itself is slower or faster. The player does not have to support playback rate.
-5. Writes a JSON sidecar of ayah time spans. The session uses those spans while the joined file is playing.
+4. Joins them with ffmpeg as PCM, then encodes one MP3. `ffprobe` measures each ayah and is called without `-nostdin`. Speeds other than 1 are applied in that encode, so the file itself is slower or faster. The player does not have to support playback rate.
+5. Writes a JSON sidecar of ayah time spans next to the MP3. The session uses those spans to follow the ayah while the file plays. The active-sessions sensor does not publish the spans or the media URL.
 6. Publishes the file on `/api/alquran_cloud/media/{token}/{filename}`.
 
 That media view does not require a Home Assistant login. Many speakers cannot send the HA token. The token in the path is unguessable and only maps to a file this process has published.
@@ -52,7 +52,13 @@ Cache files live under `.cache/alquran_cloud/audio/{edition}/{surah}-{start}-{en
 
 Repeat plays that same file the requested number of times (1–20). Continue to the next surah applies only when the range is the whole surah. Loop, off by default, replays the original surah or range. An ayah range does not continue into the next surah. Playback speed includes `0.5`.
 
-The media browser lists ayah reciters, then surahs, then ayahs. Al Quran Cloud labels Minshawi and Abdul Basit (murattal) as translations; those editions are ayah MP3s and are included. Full-surah editions are left out because they have no per-ayah file. The media source follows the config entry that is loaded now, so removing the integration and adding it again does not require a Home Assistant restart. The first card inside a surah names the surah, its ayah count, and Meccan or Medinan. Playing it calls `prepare_playback` for ayah 1 through the last ayah, at the saved playback speed, so it reuses the joined MP3 cache. A missing file is built first. Each ayah card still resolves one public CDN MP3. Favorites from the options flow are listed first.
+While that speaker session is already playing, Continue, Loop, and Repeat from the card or from `alquran_cloud.transport` with `settings` change the session immediately. The file already playing is not interrupted. A new speed is stored and used when that range repeats or the next surah starts, because speed is part of the encoded file.
+
+The catalog is Arabic audio that is ayah by ayah: editions of type `versebyverse`, plus the editions Al Quran Cloud labels `translation` even though each ayah is an MP3. Those are Minshawi, Minshawi (Mujawwad), the alternate Minshawi edition, and Abdul Basit (murattal). Full-surah editions (`surahbysurah`) stay out, because the ayah endpoint has no file for them. The list refreshes every 24 hours and again when the integration is set up.
+
+The media browser lists those reciters, then surahs, then ayahs. Favorites from the options flow are listed first. The first card inside a surah names the surah, its ayah count, and Meccan or Medinan. Playing it calls `prepare_playback` for ayah 1 through the last ayah, at the saved playback speed, so it reuses the joined MP3 cache. A missing file is built first. Each ayah card still resolves one public CDN MP3.
+
+Home Assistant keeps the media source object until the process restarts. Browse and playback look up the config entry that is loaded now, so removing the integration and adding it again fills the card lists without a Home Assistant restart.
 
 ## Web app
 
@@ -97,7 +103,7 @@ The old video mode left MP4s under `.cache/alquran_cloud/surah/` and ayah PNGs u
 
 ## Session and entities
 
-One `PlaybackSession` per media player. `sensor.al_quran_cloud_active_sessions` exposes the reciter, surah, and requested range, keyed by media-player entity id. The same attributes include `display_language`, `english` or `arabic`. They do not include the media address or the ayah cue list. An unchanged report from a TV page does not write the sensor again. The card and the TV page both follow `display_language`. A stop button is created for each player that has been used.
+One `PlaybackSession` per media player. `sensor.al_quran_cloud_active_sessions` exposes the reciter, surah, requested range, repeat, speed, continue, loop, and web app state, keyed by media-player entity id. The same attributes include `display_language`, `english` or `arabic`, and `report_seq`. They do not include the media address or the ayah cue list. `report_seq` increases only when a reported value changes, and an unchanged TV report does not write the sensor again. The card copies page settings only when `report_seq` moves forward. The card and the TV page both follow `display_language`. A stop button is created for each player that has been used.
 
 Audio stop calls `media_stop`. Web app stop is the table above: Home on LG and Android TV, and only a session clear on Samsung.
 
@@ -110,4 +116,7 @@ Audio stop calls `media_stop`. Web app stop is the table above: Home on LG and A
 - Web app targets are browsers we can launch: LG webOS, Samsung, and Android TV via ADB. Chromecast is audio only.
 - Joined audio requires HTTPS. The TV page prefers the internal URL and may be HTTP.
 - Cache days apply to joined audio. Old video files are deleted, not regenerated.
+- The catalog keeps ayah editions, including the ones Al Quran Cloud labels as translations. It drops full-surah editions.
+- Browse and playback use the config entry that is loaded now.
+- On a running speaker session, Continue, Loop, and Repeat apply immediately. Speed applies on the next repeat or the next surah.
 - The media browser plays one CDN file per ayah. The first card in a surah uses the joined MP3 cache.

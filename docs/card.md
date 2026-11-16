@@ -41,7 +41,7 @@ background_video: false
 
 Play calls `alquran_cloud.play` with those fields. Pause, resume, and volume use the media player’s own services when the player supports them. In audio mode, next and previous call `alquran_cloud.next_surah` and `previous_surah`. In web app mode, previous surah, previous ayah, play, pause, next ayah, and next surah call `alquran_cloud.transport` on every TV. Sync calls `alquran_cloud.transport` with `report`. Stop calls `alquran_cloud.stop`.
 
-Reciters and surahs are loaded from the `media-source://alquran_cloud` catalog, the same tree as the media browser. Favorites saved in the integration options come first. If that browse fails, the card asks again a couple of seconds later, including after the integration is removed and added again.
+Reciters and surahs are loaded from the `media-source://alquran_cloud` catalog, the same tree as the media browser. That list includes Minshawi and Abdul Basit (murattal). Favorites saved in the integration options come first. If that browse fails, the card asks again a couple of seconds later, including after the integration is removed and added again. A successful load is not replaced by an empty list.
 
 ## Player list
 

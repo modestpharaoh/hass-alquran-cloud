@@ -123,7 +123,7 @@ A surah is named with its number, name, ayah count, and Meccan or Medinan, in th
 ## Decisions
 
 - Serve the existing player from Home Assistant. Do not generate an MP4.
-- The TV does not report ayah progress back.
+- The page reports the reciter, surah, ayah, and playback settings on its control poll. It does not report a media position, and Home Assistant does not advance the ayah from the TV’s media player.
 - The page must work in a subdirectory, so asset URLs are relative to `/api/alquran_cloud/kiosk/` and the address keeps its trailing slash.
 - Do not block first paint on the service worker, and do not let the worker answer media elements.
 - webOS 4 gets a Chrome 53 build plus a few DOM polyfills, and does not get a service worker.

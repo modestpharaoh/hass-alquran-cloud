@@ -52,7 +52,7 @@ play:
           mode: box
     speed:
       name: Playback speed
-      description: 0.5, 0.75, 1, 1.25, 1.5, 1.75, or 2. Audio speeds other than 1 need ffmpeg and an HTTPS URL. The web app sends this speed to the TV browser.
+      description: 0.5, 0.75, 1, 1.25, 1.5, 1.75, or 2. Joined audio needs ffmpeg, ffprobe, and an HTTPS URL at every speed. Speeds other than 1 are written into the file. The web app sends this speed to the TV browser.
       required: false
       selector:
         number:

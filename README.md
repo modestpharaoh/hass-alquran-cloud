@@ -115,15 +115,15 @@ background_video: false
 
 The card is also added to Settings → Dashboards → Resources when Lovelace uses storage mode. The resource URL includes the version from `manifest.json`, so a version bump refreshes the card.
 
-`ffmpeg` and `ffprobe` are required for joined audio at any speed other than 1, and for probing duration. Joined audio also needs an HTTPS Home Assistant URL. The TV page can use the internal `http://` URL.
+`ffmpeg` and `ffprobe` are required for every joined audio file, including speed 1. Joined audio also needs an HTTPS Home Assistant URL. The TV page can use the internal `http://` URL.
 
 ## What it plays
 
-The public Al Quran Cloud API lists the free Arabic verse-by-verse recitations. The integration loads that list. Each reciter’s bitrate comes from the API, then every ayah MP3 is built from the global ayah number.
+The public Al Quran Cloud API lists the free Arabic ayah recitations. The integration loads that list, including Minshawi and Abdul Basit (murattal), which the API labels as translations even though each ayah is an MP3. Full-surah editions are not listed, because they have no per-ayah file. Each reciter’s bitrate comes from the ayah 1:1 URL, then every ayah MP3 is built from the global ayah number. Removing the integration and adding it again fills the card’s reciter and surah lists without a Home Assistant restart.
 
 The play action does not stream those ayah files one by one. It builds one cached MP3 for the range, under `.cache/alquran_cloud/audio/`. **Joined audio cache (days)** decides how long that file is kept. The default is 7 days. Playing it again refreshes that age. The first build of a long surah can take several minutes. A notification stays up while ffmpeg works.
 
-Speeds other than 1 are written into the cached audio file. Repeat plays that file the requested number of times. Continue to the next surah is available only for a full surah. Loop starts the original surah or range again, and it is off unless you turn it on. While a speaker is playing, the card shows the requested range, such as `001:005`, or the surah line with its ayah count when the range runs through the last ayah. Names and labels follow the integration display language, Arabic or English. The volume row sits under the media player and shows the level, such as `42%`, just before the increase button.
+Speeds other than 1 are written into the cached audio file. Repeat plays that file the requested number of times. Continue to the next surah is available only for a full surah. Loop starts the original surah or range again, and it is off unless you turn it on. While a speaker is already playing, Continue, Loop, and Repeat take effect immediately and the file already playing is not cut off. A new speed is used when that range repeats or the next surah starts. The card shows the requested range, such as `001:005`, or the surah line with its ayah count when the range runs through the last ayah. Names and labels follow the integration display language, Arabic or English. The volume row sits under the media player and shows the level, such as `42%`, just before the increase button.
 
 ## Web app on a TV
 
@@ -187,7 +187,7 @@ data:
   background_video: false
 ```
 
-`alquran_cloud.transport` sends one command to the page that is already open. It does not reload the page and it does not open a new surah. `command` is `play`, `pause`, `previous_ayah`, `next_ayah`, `previous_surah`, `next_surah`, or `report`. The ayah and surah commands step one ayah or one whole surah. `next` and `previous` still follow the ayah-or-surah choice saved on the TV. `report` asks the page for the current reciter, surah, and ayah and leaves the clip where it is. The card uses this action for its six buttons and for Sync.
+`alquran_cloud.transport` sends one command to the page that is already open. It does not reload the page and it does not open a new surah. `command` is `play`, `pause`, `previous_ayah`, `next_ayah`, `previous_surah`, `next_surah`, `report`, or `settings`. The ayah and surah commands step one ayah or one whole surah. `next` and `previous` still follow the ayah-or-surah choice saved on the TV. `report` asks the page for the current reciter, surah, and ayah and leaves the clip where it is. `settings` carries continue, loop, background video, repeat, and speed. On a speaker, that same `settings` command updates Continue, Loop, and Repeat for the session already playing, and stores a new speed for the next repeat or the next surah. The card uses this action for its six buttons, for Sync, and for those playback controls.
 
 ```yaml
 action: alquran_cloud.transport
@@ -247,7 +247,7 @@ Starting the integration also deletes leftover surah videos and ayah pictures. `
 - [ ] `background_video: true` opens the web app with the landscape clip playing. The default leaves it hidden.
 - [ ] `continue_surah: true` on a full surah opens with auto-next on and moves to the next surah. `auto_surah=false` leaves that button off and stops at the end.
 - [ ] `loop: true` turns the web app loop button on. Off leaves it off.
-- [ ] LG, Samsung, or Android TV opens the player on the requested reciter and ayah range. The card hides that surah and reciter, and its next and previous buttons send track commands.
+- [ ] LG, Samsung, or Android TV opens the player on the requested reciter and ayah range. The card shows the surah line and ayah from the last report, and its ayah and surah buttons send `alquran_cloud.transport`.
 - [ ] A second audio play of the same reciter and range starts without building the file again.
 - [ ] webOS 4 shows the bismillah image, fills the surah, and plays audio after a remote key if the TV blocked autoplay.
 
