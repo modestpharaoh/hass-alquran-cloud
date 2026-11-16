@@ -48,7 +48,23 @@ class AlquranCloudMediaSource(MediaSource):
         """Initialize the media source."""
         super().__init__(DOMAIN)
         self.hass = hass
-        self.entry = entry
+        self._config_entry = entry
+
+    @property
+    def entry(self) -> ConfigEntry:
+        """Return the config entry that is loaded now.
+
+        Home Assistant keeps this media source for the life of the process.
+        Removing the integration and adding it again creates a new entry, so
+        browse and playback must not keep the entry captured at construction.
+        """
+        finder = getattr(getattr(self.hass, "config_entries", None), "async_entries", None)
+        if callable(finder):
+            for item in finder(DOMAIN):
+                if getattr(item, "state", None) is ConfigEntryState.LOADED:
+                    return item
+            raise BrowseError("Al Quran Cloud catalog is not ready")
+        return self._config_entry
 
     @property
     def coordinator(self) -> QuranCoordinator:
@@ -67,7 +83,11 @@ class AlquranCloudMediaSource(MediaSource):
 
     async def async_resolve_media(self, item: MediaSourceItem) -> PlayMedia:
         """Resolve an ayah or a full surah to an MP3."""
-        if self.entry.state is not ConfigEntryState.LOADED:
+        try:
+            entry = self.entry
+        except BrowseError as err:
+            raise Unresolvable("Al Quran Cloud is not ready") from err
+        if entry.state is not ConfigEntryState.LOADED:
             raise Unresolvable("Al Quran Cloud is not ready")
         parsed = _parse_identifier(item.identifier)
         if parsed is None or parsed[1] is None:

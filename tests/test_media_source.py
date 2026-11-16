@@ -10,6 +10,7 @@ from custom_components.alquran_cloud.api import Catalog, Chapter, Reciter
 from custom_components.alquran_cloud.const import MIME_TYPE_MP3
 from custom_components.alquran_cloud.media_source import AlquranCloudMediaSource, _parse_identifier
 from custom_components.alquran_cloud.video import LocalMediaError
+from homeassistant.components.media_player import BrowseError
 from homeassistant.components.media_source import MediaSourceItem, Unresolvable
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 
@@ -101,3 +102,28 @@ async def test_full_surah_uses_the_joined_cache(monkeypatch):
     )
     with pytest.raises(Unresolvable):
         await source.async_resolve_media(MediaSourceItem("reciter/ar.alafasy/chapter/1/full"))
+
+
+class _Entries:
+    def __init__(self, items):
+        self.items = items
+
+    def async_entries(self, _domain):
+        return self.items
+
+
+@pytest.mark.asyncio
+async def test_browse_follows_the_entry_loaded_after_readd():
+    stale = ConfigEntry()
+    stale.state = ConfigEntryState.NOT_LOADED
+    source = AlquranCloudMediaSource(None, stale)
+    source.hass = SimpleNamespace(config_entries=_Entries([stale]))
+    with pytest.raises(BrowseError):
+        await source.async_browse_media(MediaSourceItem())
+    with pytest.raises(Unresolvable):
+        await source.async_resolve_media(MediaSourceItem("reciter/ar.alafasy/chapter/1/ayah/1"))
+
+    fresh = _source().entry
+    source.hass = SimpleNamespace(config_entries=_Entries([stale, fresh]))
+    root = await source.async_browse_media(MediaSourceItem())
+    assert any("Alafasy" in child.title for child in root.children)

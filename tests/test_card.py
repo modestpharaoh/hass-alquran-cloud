@@ -221,6 +221,31 @@ async function exercise() {
   check("audio speed is stored for the next file", calls[2].data.command === "settings" && calls[2].data.speed === 1.5);
   check("audio repeat updates the running session", calls[3].data.repeat === 3);
   check("audio background stays on the page", calls.length === 4);
+  let loads = 0;
+  const view = {
+    _hass: {},
+    _built: true,
+    _catalog: false,
+    _followBusy: false,
+    _loadReciters() { loads += 1; this._followBusy = true; }
+  };
+  card.AlquranCloudCard.prototype._ensureCatalog.call(view);
+  card.AlquranCloudCard.prototype._ensureCatalog.call(view);
+  check("catalog load starts once while busy", loads === 1);
+  view._followBusy = false;
+  view._catalogAfter = Date.now() + 60000;
+  card.AlquranCloudCard.prototype._ensureCatalog.call(view);
+  check("catalog load waits after a failure", loads === 1);
+  view._catalogAfter = 0;
+  card.AlquranCloudCard.prototype._ensureCatalog.call(view);
+  check("catalog load retries when the integration returns", loads === 2);
+  view._catalog = true;
+  card.AlquranCloudCard.prototype._ensureCatalog.call(view);
+  check("catalog load stops after success", loads === 2);
+  const setter = Object.getOwnPropertyDescriptor(card.AlquranCloudCard.prototype, "hass").set;
+  const cardView = { _built: true, ensured: 0, _ensureCatalog() { this.ensured += 1; }, _update() {} };
+  setter.call(cardView, {});
+  check("a later hass update asks for the catalog again", cardView.ensured === 1);
 }
 exercise().then(() => process.exit(0), (err) => {
   console.error(err && err.stack || err);

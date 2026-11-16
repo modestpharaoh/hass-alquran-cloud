@@ -632,6 +632,7 @@ class AlquranCloudCard extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     if (!this._built) this._build();
+    else this._ensureCatalog();
     this._update();
   }
 
@@ -640,7 +641,13 @@ class AlquranCloudCard extends HTMLElement {
   }
 
   connectedCallback() {
-    if (this._hass && !this._catalog) this._loadReciters();
+    this._ensureCatalog();
+  }
+
+  _ensureCatalog() {
+    if (!this._hass || !this._built || this._catalog || this._followBusy) return;
+    if (this._catalogAfter && Date.now() < this._catalogAfter) return;
+    this._loadReciters();
   }
 
   disconnectedCallback() {
@@ -911,6 +918,7 @@ class AlquranCloudCard extends HTMLElement {
     try {
       const root = await this._browse(ROOT_ID);
       this._catalog = true;
+      this._catalogAfter = 0;
       const children = root.children || [];
       this._reciter.innerHTML = children
         .map((child) => `<option value="${valueFromContent(child.media_content_id, "reciter")}">${child.title}</option>`)
@@ -929,6 +937,7 @@ class AlquranCloudCard extends HTMLElement {
       }
     } catch (err) {
       this._status.textContent = errorText(err, text.error);
+      this._catalogAfter = Date.now() + 2000;
     } finally {
       this._followBusy = false;
     }

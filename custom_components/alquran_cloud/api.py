@@ -13,6 +13,9 @@ from .const import API_BASE, LANG_ARABIC, arabic_ayah_word, ayah_audio_url, reve
 
 _LOGGER = logging.getLogger(__name__)
 _TIMEOUT = ClientTimeout(total=30)
+# Al Quran Cloud marks Minshawi and Abdul Basit (murattal) as translations even
+# though each ayah is an MP3. Surah-by-surah editions have no ayah audio.
+_AYAH_EDITION_TYPES = frozenset({"versebyverse", "translation"})
 
 
 class QuranApiError(Exception):
@@ -192,12 +195,12 @@ class QuranApi:
     async def fetch_catalog(self) -> Catalog:
         """Fetch Arabic ayah reciters and the 114 surahs."""
         editions, surahs = await asyncio.gather(
-            self._get_json("edition", format="audio", type="versebyverse", language="ar"),
+            self._get_json("edition", format="audio", language="ar"),
             self._get_json("surah"),
         )
         reciters: dict[str, Reciter] = {}
         for item in editions.get("data") or []:
-            if item.get("format") != "audio" or item.get("type") != "versebyverse":
+            if item.get("format") != "audio" or item.get("type") not in _AYAH_EDITION_TYPES:
                 continue
             identifier = str(item.get("identifier") or "").strip()
             if not identifier:

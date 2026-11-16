@@ -52,7 +52,7 @@ Cache files live under `.cache/alquran_cloud/audio/{edition}/{surah}-{start}-{en
 
 Repeat plays that same file the requested number of times (1–20). Continue to the next surah applies only when the range is the whole surah. Loop, off by default, replays the original surah or range. An ayah range does not continue into the next surah. Playback speed includes `0.5`.
 
-The media browser lists reciters, then surahs, then ayahs. The first card inside a surah names the surah, its ayah count, and Meccan or Medinan. Playing it calls `prepare_playback` for ayah 1 through the last ayah, at the saved playback speed, so it reuses the joined MP3 cache. A missing file is built first. Each ayah card still resolves one public CDN MP3. Favorites from the options flow are listed first.
+The media browser lists ayah reciters, then surahs, then ayahs. Al Quran Cloud labels Minshawi and Abdul Basit (murattal) as translations; those editions are ayah MP3s and are included. Full-surah editions are left out because they have no per-ayah file. The media source follows the config entry that is loaded now, so removing the integration and adding it again does not require a Home Assistant restart. The first card inside a surah names the surah, its ayah count, and Meccan or Medinan. Playing it calls `prepare_playback` for ayah 1 through the last ayah, at the saved playback speed, so it reuses the joined MP3 cache. A missing file is built first. Each ayah card still resolves one public CDN MP3. Favorites from the options flow are listed first.
 
 ## Web app
 

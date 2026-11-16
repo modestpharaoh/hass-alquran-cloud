@@ -82,13 +82,16 @@ def test_ayah_navigation():
 async def test_fetch_catalog_and_ayah_audio():
     base = "https://api.alquran.cloud/v1"
     routes = {
-        (f"{base}/edition", "audio", "versebyverse", "ar"): {
+        (f"{base}/edition", "audio", None, "ar"): {
             "code": 200,
             "status": "OK",
             "data": [
                 {"identifier": "ar.alafasy", "englishName": "Alafasy", "name": "مشاري العفاسي", "format": "audio", "type": "versebyverse"},
                 {"identifier": "ar.husarymujawwad", "englishName": "Husary", "name": "محمود خليل الحصري", "format": "audio", "type": "versebyverse"},
-                {"identifier": "ar.en.translation", "englishName": "Skip", "name": "ترجمة", "format": "audio", "type": "translation"},
+                {"identifier": "ar.minshawi", "englishName": "Minshawi", "name": "محمد صديق المنشاوي", "format": "audio", "type": "translation"},
+                {"identifier": "ar.abdulbasitmurattal", "englishName": "Abdul Basit", "name": "عبد الباسط", "format": "audio", "type": "translation"},
+                {"identifier": "ar.fullsurah", "englishName": "Full", "name": "سورة", "format": "audio", "type": "surahbysurah"},
+                {"identifier": "en.walk", "englishName": "Walk", "name": "نص", "format": "text", "type": "versebyverse"},
             ],
         },
         (f"{base}/surah", None, None, None): {
@@ -109,7 +112,10 @@ async def test_fetch_catalog_and_ayah_audio():
     catalog = await api.fetch_catalog()
     assert catalog.get_reciter("ar.alafasy").name_ar == "مشاري العفاسي"
     assert "ar.husarymujawwad" in catalog.get_reciter("ar.husarymujawwad").browse_title()
-    assert catalog.get_reciter("ar.en.translation") is None
+    assert catalog.get_reciter("ar.minshawi").name_en == "Minshawi"
+    assert catalog.get_reciter("ar.abdulbasitmurattal").name_ar == "عبد الباسط"
+    assert catalog.get_reciter("ar.fullsurah") is None
+    assert catalog.get_reciter("en.walk") is None
     assert catalog.get_chapter(1).verses_count == 7
     assert await api.ayah_audio_url(catalog, "ar.alafasy", 2, 1) == (
         "https://cdn.islamic.network/quran/audio/128/ar.alafasy/8.mp3"
@@ -121,7 +127,7 @@ async def test_fetch_catalog_and_ayah_audio():
 async def test_fetch_catalog_rejects_a_surah_without_a_number():
     base = "https://api.alquran.cloud/v1"
     routes = {
-        (f"{base}/edition", "audio", "versebyverse", "ar"): {
+        (f"{base}/edition", "audio", None, "ar"): {
             "code": 200,
             "status": "OK",
             "data": [
