@@ -261,3 +261,11 @@ npm install
 ```
 
 `requirements-dev.txt` installs `pytest`, `pytest-asyncio`, `aiohttp`, and `voluptuous`. `npm install` installs the esbuild used to check the TV page’s Chrome 53 scripts. No Home Assistant install is required.
+
+## Attribution
+
+Recitations, ayah pictures, and catalog data are provided by [Al Quran Cloud](https://alquran.cloud/) and the [Islamic Network](https://islamic.network/). This project is not affiliated with alquran.cloud.
+
+## License
+
+[MIT](LICENSE)
