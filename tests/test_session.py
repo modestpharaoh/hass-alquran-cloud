@@ -175,8 +175,31 @@ async def test_audio_continue_and_loop_update_the_running_session(hass: HomeAssi
     assert session.continue_surah is True
     assert session.loop is True
     assert session.commands == []
-    assert manager.queue_settings("media_player.room", {"speed": 1.5}) is False
+    played = len(_play_calls(hass))
+    speeds = []
+
+    async def prepare(**kwargs):
+        speeds.append(kwargs["speed"])
+        return PreparedMedia(
+            url="https://ha.example/range.mp3",
+            content_type="audio/mpeg",
+            title="001",
+            artist="Alafasy",
+            marker="surah",
+            image_url="",
+        )
+
+    manager.set_preparer(prepare)
+    assert manager.queue_settings("media_player.room", {"repeat": 2, "speed": 1.5}) is True
+    assert session.repeat == 2
+    assert session.plays_remaining == 2
+    assert session.speed == 1.5
+    assert len(_play_calls(hass)) == played
     await _finish(manager, "media_player.room")
+    assert speeds == [1.5]
+    assert manager.get_session("media_player.room").chapter == 1
+    await _finish(manager, "media_player.room")
+    assert speeds == [1.5, 1.5]
     assert manager.get_session("media_player.room").chapter == 2
 
     await manager.async_start(

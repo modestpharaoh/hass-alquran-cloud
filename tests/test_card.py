@@ -214,9 +214,13 @@ async function exercise() {
   card.AlquranCloudCard.prototype._pushPageSetting.call(playing, { loop: true });
   card.AlquranCloudCard.prototype._pushPageSetting.call(playing, { continue_surah: true });
   card.AlquranCloudCard.prototype._pushPageSetting.call(playing, { speed: 1.5 });
+  card.AlquranCloudCard.prototype._pushPageSetting.call(playing, { repeat: 3 });
+  card.AlquranCloudCard.prototype._pushPageSetting.call(playing, { background_video: true });
   check("audio loop updates the running session", calls[0].service === "transport" && calls[0].data.command === "settings" && calls[0].data.loop === true);
   check("audio continue updates the running session", calls[1].data.continue_surah === true);
-  check("audio speed waits for the next file", calls.length === 2);
+  check("audio speed is stored for the next file", calls[2].data.command === "settings" && calls[2].data.speed === 1.5);
+  check("audio repeat updates the running session", calls[3].data.repeat === 3);
+  check("audio background stays on the page", calls.length === 4);
 }
 exercise().then(() => process.exit(0), (err) => {
   console.error(err && err.stack || err);

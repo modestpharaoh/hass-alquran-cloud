@@ -80,7 +80,7 @@ play:
 
 transport:
   name: TV page command
-  description: Ask the open Quran page to play, pause, step, report, or apply playback settings. The page does not reload. On a speaker, settings updates Continue and Loop for the session that is already playing.
+  description: Ask the open Quran page to play, pause, step, report, or apply playback settings. The page does not reload. On a speaker, settings updates Continue, Loop, and Repeat for the session that is already playing. A new speed is used on the next repeat or the next surah.
   target:
     entity:
       domain: media_player

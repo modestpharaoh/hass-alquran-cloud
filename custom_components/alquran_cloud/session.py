@@ -837,7 +837,7 @@ class PlaybackSessionManager:
         return True
 
     def _apply_audio_settings(self, session: PlaybackSession, values: dict[str, Any]) -> bool:
-        """Apply continue and loop to a speaker session without rebuilding audio."""
+        """Apply speaker settings without interrupting the file already playing."""
         applied = False
         if "continue_surah" in values:
             session.continue_surah = bool(values["continue_surah"]) and session.full_surah
@@ -845,6 +845,23 @@ class PlaybackSessionManager:
         if "loop" in values:
             session.loop = bool(values["loop"])
             applied = True
+        if "repeat" in values:
+            try:
+                repeat = int(values["repeat"])
+            except (TypeError, ValueError):
+                repeat = 0
+            if MIN_REPEAT <= repeat <= MAX_REPEAT:
+                completed = max(0, session.repeat - session.plays_remaining)
+                session.repeat = repeat
+                session.plays_remaining = max(1, repeat - completed)
+                applied = True
+        if "speed" in values:
+            try:
+                session.speed = coerce_speed(values["speed"])
+            except ValueError:
+                pass
+            else:
+                applied = True
         if not applied:
             return False
         self._notify_listeners()
