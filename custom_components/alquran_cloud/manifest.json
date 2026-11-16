@@ -2,14 +2,15 @@
   "domain": "alquran_cloud",
   "name": "Al Quran Cloud",
   "after_dependencies": ["lovelace", "network"],
+  "categories": ["media_entertainment"],
   "codeowners": ["@modestpharaoh"],
   "config_flow": true,
   "dependencies": ["http", "media_source"],
   "documentation": "https://alquran.cloud/cdn",
   "integration_type": "service",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/modestpharaoh/hass-quran-com/issues",
+  "issue_tracker": "https://github.com/modestpharaoh/hass-alquran-cloud/issues",
   "loggers": ["custom_components.alquran_cloud"],
   "requirements": [],
-  "version": "1.0.1"
+  "version": "1.0.2"
 }
