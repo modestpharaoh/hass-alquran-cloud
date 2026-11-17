@@ -30,7 +30,7 @@ vm.runInContext(`
 ` + fs.readFileSync(process.argv[1], "utf8") + `
   globalThis.__card = {
     playbackLine, integrationLanguage, mediaPlayers, sessionFor, playbackSelectors, canSeek, seekFraction, powerAction,
-    playbackClock, formatTime, strings, AlquranCloudCard
+    playbackClock, formatTime, strings, fillSelect, AlquranCloudCard
   };
 `, context);
 
@@ -246,6 +246,15 @@ async function exercise() {
   const cardView = { _built: true, ensured: 0, _ensureCatalog() { this.ensured += 1; }, _update() {} };
   setter.call(cardView, {});
   check("a later hass update asks for the catalog again", cardView.ensured === 1);
+  const select = {
+    dataset: {},
+    options: [],
+    value: "",
+    replaceChildren() { this.options.length = 0; },
+    appendChild(node) { this.options.push(node); },
+  };
+  card.fillSelect(select, [{ id: "ar.minshawi", label: "<img src=x>" }], "ar.minshawi", "");
+  check("catalog titles are text", select.options[0].textContent === "<img src=x>" && select.options[0].innerHTML == null && select.value === "ar.minshawi");
 }
 exercise().then(() => process.exit(0), (err) => {
   console.error(err && err.stack || err);

@@ -262,6 +262,26 @@ def _remove_tree(path: Path) -> int:
     return removed
 
 
+_ffmpeg_bin: str | None = None
+_ffprobe_bin: str | None = None
+_ffmpeg_known = False
+_ffprobe_known = False
+
+
+async def _binary(name: str) -> str | None:
+    """Find ffmpeg or ffprobe once, off the event loop."""
+    global _ffmpeg_bin, _ffprobe_bin, _ffmpeg_known, _ffprobe_known
+    if name == "ffmpeg":
+        if not _ffmpeg_known:
+            _ffmpeg_bin = await _blocking(shutil.which, "ffmpeg")
+            _ffmpeg_known = True
+        return _ffmpeg_bin
+    if not _ffprobe_known:
+        _ffprobe_bin = await _blocking(shutil.which, "ffprobe")
+        _ffprobe_known = True
+    return _ffprobe_bin
+
+
 async def _blocking(func: Callable[..., Any], /, *args: Any, **kwargs: Any) -> Any:
     """Run one filesystem call off the event loop."""
     if kwargs:
@@ -334,7 +354,7 @@ async def _download(session: ClientSession, url: str, dest: Path) -> None:
 
 async def probe_duration(path: Path) -> float | None:
     """Return the media duration in seconds, if ffprobe can read it."""
-    ffprobe = shutil.which("ffprobe")
+    ffprobe = await _binary("ffprobe")
     if ffprobe is None:
         return None
     process = await asyncio.create_subprocess_exec(
@@ -582,9 +602,10 @@ async def build_range_audio(
     sidecar = dest.with_suffix(".json")
     if await _cached(dest, sidecar, cache_days):
         return dest, await _blocking(_load_cues, sidecar)
-    if run_command is None and shutil.which("ffmpeg") is None:
+    ffmpeg = await _binary("ffmpeg")
+    if run_command is None and not ffmpeg:
         raise LocalMediaError("ffmpeg is required to join ayah audio.")
-    if probe is None and shutil.which("ffprobe") is None:
+    if probe is None and not await _binary("ffprobe"):
         raise LocalMediaError("ffprobe is required to join ayah audio.")
     runner = run_command or _run_command
     duration_of = probe or probe_duration
@@ -607,7 +628,7 @@ async def build_range_audio(
                 wav = work / f"{ayah:03d}.wav"
                 await download(audio_for(ayah), mp3)
                 if not await _blocking(_pcm_is_current, wav, mp3):
-                    await runner(ffmpeg_pcm_command(shutil.which("ffmpeg") or "ffmpeg", mp3, wav))
+                    await runner(ffmpeg_pcm_command(ffmpeg or "ffmpeg", mp3, wav))
                 duration = await duration_of(wav)
                 if not duration or duration <= 0:
                     raise LocalMediaError(f"Could not read the duration of ayah {chapter.number}:{ayah}")
@@ -615,10 +636,10 @@ async def build_range_audio(
                 measured.append((ayah, duration / speed))
             cues = cues_from_durations(measured)
             await _blocking(_write_text, audio_list, audio_concat_script(wavs))
-            ffmpeg = shutil.which("ffmpeg") or "ffmpeg"
-            await runner(ffmpeg_concat_copy_command(ffmpeg, audio_list, joined))
+            binary = ffmpeg or "ffmpeg"
+            await runner(ffmpeg_concat_copy_command(binary, audio_list, joined))
             await _blocking(dest.parent.mkdir, parents=True, exist_ok=True)
-            await runner(ffmpeg_joined_audio_command(ffmpeg, joined, temporary, speed))
+            await runner(ffmpeg_joined_audio_command(binary, joined, temporary, speed))
             await _blocking(temporary.replace, dest)
             await _blocking(_write_sidecar, sidecar, SurahTags("", "", "", ""), cues)
             completed = True
@@ -733,7 +754,7 @@ class QuranMediaView:
         """Return the file published for this token."""
         hass = request.app["hass"]
         store: MediaStore | None = hass.data.get(DOMAIN, {}).get("store")
-        path = store.resolve(token) if store else None
+        path = await _blocking(store.resolve, token) if store else None
         if path is None or path.name != filename:
             return web.Response(status=404, text="Not found")
         return web.FileResponse(path)

@@ -919,13 +919,14 @@ class AlquranCloudCard extends HTMLElement {
       const root = await this._browse(ROOT_ID);
       this._catalog = true;
       this._catalogAfter = 0;
-      const children = root.children || [];
-      this._reciter.innerHTML = children
-        .map((child) => `<option value="${valueFromContent(child.media_content_id, "reciter")}">${child.title}</option>`)
-        .join("");
       const playing = sessionFor(this._hass, this._player && this._player.value);
       const choice = playbackSelectors(playing, this._config);
-      if (choice.reciter) this._reciter.value = choice.reciter;
+      fillSelect(
+        this._reciter,
+        (root.children || []).map((child) => asOption(child, "reciter")).filter(Boolean),
+        choice.reciter || "",
+        ""
+      );
       if (playing) {
         await this._fillSurahs(choice.surah);
         const savedReciter = String(this._preferredReciter || "");
@@ -945,10 +946,12 @@ class AlquranCloudCard extends HTMLElement {
 
   async _fillSurahs(selected) {
     const result = await this._browse(`${ROOT_ID}/reciter/${this._reciter.value}`);
-    this._surah.innerHTML = (result.children || [])
-      .map((child) => `<option value="${idFromContent(child.media_content_id, "chapter")}">${child.title}</option>`)
-      .join("");
-    if (selected) this._surah.value = String(selected);
+    fillSelect(
+      this._surah,
+      (result.children || []).map((child) => asOption(child, "chapter")).filter(Boolean),
+      selected || "",
+      ""
+    );
   }
 
   async _loadChapters() {

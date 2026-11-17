@@ -13,7 +13,7 @@ from urllib.parse import urlencode
 from aiohttp import ClientError, ClientSession, ClientTimeout, web
 
 from .const import CONF_KIOSK_ALLOW_PRIVATE, CONF_KIOSK_TRUSTED_NETWORKS, DOMAIN, LANG_ARABIC
-from .video import LocalMediaError
+from .video import LocalMediaError, _blocking
 
 _LOGGER = logging.getLogger(__name__)
 _REFUSED_LIMIT = 256
@@ -461,7 +461,11 @@ class QuranKioskView:
         cdn_audio = lookahead_audio_url(path)
         if cdn_audio:
             return await stream_lookahead_audio(request, cdn_audio, hass)
-        target = resolve_kiosk_file(KIOSK_ROOT, path or request.path.removeprefix("/api/alquran_cloud/kiosk"))
+        target = await _blocking(
+            resolve_kiosk_file,
+            KIOSK_ROOT,
+            path or request.path.removeprefix("/api/alquran_cloud/kiosk"),
+        )
         if target is None:
             return web.Response(status=404, text="Not found")
         headers = None
